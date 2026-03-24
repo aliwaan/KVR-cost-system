@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KVRdevelopment - Master Management System</title>
+    <title>KVRdevelopment - Master System FIXED</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #2980b9; --secondary: #27ae60; --danger: #e74c3c; --warning: #f39c12; --bg: #f4f7f6; --dark: #2c3e50; --permit: #8e44ad; }
@@ -46,7 +46,7 @@
     </div>
 
     <div class="card" style="border-top: 5px solid var(--dark);">
-        <h3 style="margin-top:0;">➕ จัดการข้อมูลโครงการ</h3>
+        <h3 id="formTitle" style="margin-top:0;">➕ จัดการข้อมูลโครงการ</h3>
         <div class="grid-project-head">
             <input type="hidden" id="editIdx" value="-1">
             <div><span class="label">ประเภท</span><select id="pType"><option value="normal">งานปกติ</option><option value="openend">งาน Open-end</option></select></div>
@@ -79,11 +79,11 @@
     const statuses = ["เตรียมจ่าย", "จ่ายแล้ว", "บันทึกลง flowaccount แล้ว"];
     const routeStatuses = ["ยังไม่เริ่มงาน", "กำลังดำเนินการ", "รอใบอนุญาต", "ได้รับใบอนุญาตแล้ว", "วางท่อเสร็จสิ้น", "ส่งมอบงานแล้ว", "ระงับการดำเนินการ"];
     
-    let projects = JSON.parse(localStorage.getItem('kvr_final_master')) || [];
+    let projects = JSON.parse(localStorage.getItem('kvr_v12_p1fixed')) || [];
 
-    // --- Smart Login ---
+    // --- Smart Login (10 Mins) ---
     window.onload = function() {
-        const lastLogin = localStorage.getItem('kvr_session');
+        const lastLogin = localStorage.getItem('kvr_last_session');
         if (lastLogin && (new Date().getTime() - lastLogin) / 60000 < 10) {
             showApp();
         }
@@ -95,18 +95,18 @@
     }
 
     function showApp() {
-        localStorage.setItem('kvr_session', new Date().getTime());
+        localStorage.setItem('kvr_last_session', new Date().getTime());
         document.getElementById('loginOverlay').style.display = 'none';
         document.getElementById('mainContent').style.display = 'block';
         render();
     }
 
     function logout() {
-        localStorage.removeItem('kvr_session');
+        localStorage.removeItem('kvr_last_session');
         location.reload();
     }
 
-    // --- Accounting Helpers ---
+    // --- Helpers ---
     function formatInput(el) {
         let val = el.value.replace(/,/g, '');
         if(!isNaN(val) && val !== "") el.value = Number(val).toLocaleString('en-US');
@@ -114,7 +114,7 @@
     function unformat(str) { return parseFloat(str.toString().replace(/,/g, '')) || 0; }
     function nf(num) { return Number(num).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
-    // --- CRUD Logic ---
+    // --- Logic ---
     function addOrUpdateProject() {
         const name = document.getElementById('pName').value;
         const contractVat = unformat(document.getElementById('pContractVat').value);
@@ -144,6 +144,11 @@
         save();
     }
 
+    function updateP1Value(pIdx, rIdx, field, val) {
+        projects[pIdx].routes[rIdx][field] = unformat(val);
+        save();
+    }
+
     function addExpense(pIdx, rIdx) {
         const date = document.getElementById(`expDate-${pIdx}-${rIdx}`).value || new Date().toISOString().split('T')[0];
         const payee = document.getElementById(`payee-${pIdx}-${rIdx}`).value;
@@ -154,12 +159,7 @@
         }
     }
 
-    function updateField(pIdx, rIdx, field, val) {
-        projects[pIdx].routes[rIdx][field] = unformat(val);
-        save();
-    }
-
-    function save() { localStorage.setItem('kvr_final_master', JSON.stringify(projects)); render(); }
+    function save() { localStorage.setItem('kvr_v12_p1fixed', JSON.stringify(projects)); render(); }
     function deleteProject(idx) { if(confirm("ลบโครงการ?")) { projects.splice(idx, 1); save(); } }
     function resetProjectForm() { document.getElementById('pName').value = ''; document.getElementById('pContractVat').value = ''; }
 
@@ -171,11 +171,12 @@
             p.routes.forEach(r => r.expenses.forEach(e => totalSpent += e.amt));
 
             list.innerHTML += `
-                <div class="card ${p.type==='openend'?'project-openend':'project-section'}">
+                <div class="card">
                     <button class="btn-red" style="float:right; scale:0.7" onclick="deleteProject(${pi})">ลบโครงการ</button>
                     <h2>${p.name} <span style="font-size:14px; color:var(--primary)">[สาขา${p.branch}]</span></h2>
+                    
                     <div class="summary-grid">
-                        <div class="summary-item"><span class="label">งบเป้าหมายรวม</span><span class="val">${nf(p.targetCost)}</span></div>
+                        <div class="summary-item"><span class="label">งบเป้าหมาย (No VAT)</span><span class="val">${nf(p.targetCost)}</span></div>
                         <div class="summary-item"><span class="label">จ่ายสะสม</span><span class="val" style="color:var(--danger)">${nf(totalSpent)}</span></div>
                         <div class="summary-item"><span class="label">คงเหลือ</span><span class="val">${nf(p.targetCost - totalSpent)}</span></div>
                     </div>
@@ -188,21 +189,27 @@
                         return `
                             <div class="route-card">
                                 <h4>📍 ${r.name} (${r.dist} ม.) | ${r.status}</h4>
+                                
                                 <div class="grid-p1-compare">
-                                    <div><span class="label">P1 ช่าง</span><input type="text" value="${nf(r.p1SupVat)}" oninput="formatInput(this)" onchange="updateField(${pi}, ${ri}, 'p1SupVat', this.value)"></div>
-                                    <div><span class="label">P1 วิศวกร</span><input type="text" value="${nf(r.p1EngVat)}" oninput="formatInput(this)" onchange="updateField(${pi}, ${ri}, 'p1EngVat', this.value)"></div>
-                                    <div><span class="label">งบประมาณ</span><span class="val">${nf(routeBudget)}</span></div>
-                                    <div><span class="label">คงเหลือที่จ่ายได้</span><span class="val" style="color:${(routeBudget-spent)<0?'red':'green'}">${nf(routeBudget-spent)}</span></div>
+                                    <div><span class="label">P1 ช่างคุมงาน</span><input type="text" value="${nf(r.p1SupVat)}" oninput="formatInput(this)" onchange="updateP1Value(${pi}, ${ri}, 'p1SupVat', this.value)"></div>
+                                    <div><span class="label" style="color:var(--permit)">P1 วิศวกร</span><input type="text" value="${nf(r.p1EngVat)}" oninput="formatInput(this)" onchange="updateP1Value(${pi}, ${ri}, 'p1EngVat', this.value)" style="border:1px solid var(--permit)"></div>
+                                    <div><span class="label">งบประมาณซอย</span><span class="val">${nf(routeBudget)}</span></div>
+                                    <div><span class="label">จ่ายสะสม</span><span class="val">${nf(spent)}</span></div>
+                                    <div><span class="label">เหลือจ่ายได้</span><span class="val" style="color:${(routeBudget-spent)<0?'red':'green'}">${nf(routeBudget-spent)}</span></div>
                                 </div>
-                                <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr 1.5fr 1fr auto; gap:5px; background:#f9f9f9; padding:10px; border-radius:5px; align-items:end;">
-                                    <div><input type="date" id="expDate-${pi}-${ri}"></div>
-                                    <div><select id="cat-${pi}-${ri}">${categories.map(c => `<option value="${c}">${c}</option>`).join('')}</select></div>
-                                    <div><input type="text" id="payee-${pi}-${ri}" placeholder="ผู้รับเงิน" onkeyup="if(event.key==='Enter') addExpense(${pi}, ${ri})"></div>
-                                    <div><input type="text" id="amt-${pi}-${ri}" oninput="formatInput(this)" onkeyup="if(event.key==='Enter') addExpense(${pi}, ${ri})" placeholder="จำนวน"></div>
-                                    <div><select id="status-${pi}-${ri}">${statuses.map(s => `<option value="${s}">${s}</option>`).join('')}</select></div>
+
+                                <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr 1.5fr 1fr auto; gap:5px; background:#f9f9f9; padding:10px; border-radius:5px; align-items:end; margin-top:10px;">
+                                    <div><span class="label">วันที่</span><input type="date" id="expDate-${pi}-${ri}"></div>
+                                    <div><span class="label">หมวด</span><select id="cat-${pi}-${ri}">${categories.map(c => `<option value="${c}">${c}</option>`).join('')}</select></div>
+                                    <div><span class="label">ผู้รับเงิน</span><input type="text" id="payee-${pi}-${ri}" onkeyup="if(event.key==='Enter') addExpense(${pi}, ${ri})"></div>
+                                    <div><span class="label">จำนวนเงิน</span><input type="text" id="amt-${pi}-${ri}" oninput="formatInput(this)" onkeyup="if(event.key==='Enter') addExpense(${pi}, ${ri})"></div>
+                                    <div><span class="label">สถานะ</span><select id="status-${pi}-${ri}">${statuses.map(s => `<option value="${s}">${s}</option>`).join('')}</select></div>
                                     <button class="btn-blue" onclick="addExpense(${pi}, ${ri})">บันทึก</button>
                                 </div>
-                                <table class="exp-table"><tbody>${r.expenses.map(e => `<tr><td>${e.date}</td><td>${e.cat}</td><td>${e.payee}</td><td><b>${nf(e.amt)}</b></td><td>${e.status}</td></tr>`).join('')}</tbody></table>
+                                <table class="exp-table">
+                                    <thead><tr><th>ว/ด/ป</th><th>หมวด</th><th>ผู้รับเงิน</th><th>จำนวน</th><th>สถานะ</th></tr></thead>
+                                    <tbody>${r.expenses.map(e => `<tr><td>${e.date}</td><td>${e.cat}</td><td>${e.payee}</td><td><b>${nf(e.amt)}</b></td><td>${e.status}</td></tr>`).join('')}</tbody>
+                                </table>
                             </div>
                         `;
                     }).join('')}
