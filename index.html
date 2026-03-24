@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KVRdevelopment - Master System (Handover Restored)</title>
+    <title>KVRdevelopment - Master System Edit Fixed</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #2980b9; --secondary: #27ae60; --danger: #e74c3c; --warning: #f39c12; --bg: #f4f7f6; --dark: #2c3e50; --permit: #8e44ad; }
@@ -20,6 +20,7 @@
         .btn-red { background: var(--danger); color: white; }
         input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: 'Sarabun'; width: 100%; box-sizing: border-box; }
         
+        /* ลบแท็บเลื่อนตัวเลขออก */
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
 
@@ -59,8 +60,9 @@
     </div>
 
     <div class="card" style="border-top: 5px solid var(--dark);">
-        <h3 style="margin-top:0;">➕ สร้างโครงการใหม่</h3>
+        <h3 id="formTitle" style="margin-top:0;">➕ สร้างโครงการใหม่</h3>
         <div style="display: grid; grid-template-columns: 0.7fr 1.5fr 1.2fr 1.2fr 1fr 0.8fr 0.8fr auto; gap: 10px; margin-bottom: 15px;">
+            <input type="hidden" id="editIdx" value="-1">
             <div><span class="label">ประเภท</span><select id="pType"><option value="normal">งานปกติ</option><option value="openend">งาน Open-end</option></select></div>
             <div><span class="label">ชื่อโครงการ</span><input type="text" id="pName" placeholder="ชื่อโครงการ" onkeyup="if(event.key==='Enter') saveProject()"></div>
             <div><span class="label">สาขา กปน.</span>
@@ -78,7 +80,7 @@
             <div><span class="label">สัญญา (VAT)</span><input type="text" id="pContractVat" placeholder="0" oninput="formatInput(this)" onkeyup="if(event.key==='Enter') saveProject()"></div>
             <div><span class="label">% เป้าหมาย</span><input type="number" id="pCostPercent" value="70" onkeyup="if(event.key==='Enter') saveProject()"></div>
             <div><span class="label">รวม (เมตร)</span><input type="number" id="pTotalDist" placeholder="0" onkeyup="if(event.key==='Enter') saveProject()"></div>
-            <div style="align-self: end;"><button class="btn-blue" onclick="saveProject()">สร้าง</button></div>
+            <div style="align-self: end;"><button class="btn-blue" id="submitBtn" onclick="saveProject()">สร้างโครงการ</button></div>
         </div>
     </div>
 
@@ -90,10 +92,10 @@
     const categories = ["ค่าแรง", "ค่าคอนกรีต", "ค่า asbuilt", "ค่าช่างคุมงาน", "ค่า ผจ.", "ค่า Food support", "ค่าตรวจรับงาน"];
     const statuses = ["เตรียมจ่าย", "จ่ายแล้ว", "บันทึกลง flowaccount แล้ว"];
     const routeStatuses = ["ยังไม่เริ่มงาน", "กำลังดำเนินการ", "รอใบอนุญาต", "ได้รับใบอนุญาตแล้ว", "วางท่อเสร็จสิ้น", "ส่งมอบงานแล้ว", "ระงับการดำเนินการ"];
-    const branchOptions = ["แม้นศรี", "พญาไท", "นนทบุรี", "สมุทรปราการ", "พระโขนง", "ทุ่งมหาเมฆ", "ลาดพร้าว", "ประชาชื่น", "สุขสวัสดิ์", "ตากสิน", "บางกอกน้อย", "ภาษีเจริญ", "บางบัวทอง", "มหาสวัสดิ์", "สุวรรณภูมิ", "มีนบุรี", "แจ้งวัฒนะ", "บางเขน"];
 
-    let projects = JSON.parse(localStorage.getItem('kvr_master_v25')) || [];
+    let projects = JSON.parse(localStorage.getItem('kvr_master_v26')) || [];
 
+    // --- Smart Login ---
     window.onload = function() {
         const lastLogin = localStorage.getItem('kvr_session');
         if (lastLogin && (new Date().getTime() - lastLogin) / 60000 < 10) showApp();
@@ -113,6 +115,7 @@
 
     function logout() { localStorage.removeItem('kvr_session'); location.reload(); }
 
+    // --- Helpers ---
     function formatInput(el) {
         let val = el.value.replace(/,/g, '');
         if(!isNaN(val) && val !== "") el.value = Number(val).toLocaleString('en-US');
@@ -120,7 +123,9 @@
     function unformat(str) { return parseFloat(str.toString().replace(/,/g, '')) || 0; }
     function nf(num) { return Number(num).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
+    // --- Logic ---
     function saveProject() {
+        const idx = parseInt(document.getElementById('editIdx').value);
         const name = document.getElementById('pName').value;
         const contractVat = unformat(document.getElementById('pContractVat').value);
         if(!name || !contractVat) return;
@@ -132,31 +137,48 @@
             costPercent: parseFloat(document.getElementById('pCostPercent').value),
             targetCost: (contractVat / 1.07) * (parseFloat(document.getElementById('pCostPercent').value) / 100),
             totalDist: parseFloat(document.getElementById('pTotalDist').value) || 0,
-            routes: [], handovers: [] // เพิ่มฟิลด์ handovers สำหรับเก็บข้อมูลส่งมอบ
+            // ดึงข้อมูลซอยและส่งมอบงานเดิมมาด้วยถ้าเป็นการแก้ไข
+            routes: idx === -1 ? [] : projects[idx].routes,
+            handovers: idx === -1 ? [] : (projects[idx].handovers || [])
         };
-        projects.push(data); save();
-        document.getElementById('pName').value = ''; 
-        document.getElementById('pContractVat').value = '';
-        document.getElementById('pTotalDist').value = '';
+
+        if(idx === -1) {
+            projects.push(data); // สร้างใหม่
+        } else {
+            projects[idx] = data; // อัปเดตของเดิม
+        }
+        
+        save();
+        resetForm();
     }
 
-    function updateProjectDetail(pi, field, val) {
-        if (field === 'contractVat') {
-            val = unformat(val);
-            projects[pi].contractVat = val;
-            projects[pi].contractNoVat = val / 1.07;
-        } else if (field === 'costPercent' || field === 'totalDist') {
-            val = parseFloat(val) || 0;
-            projects[pi][field] = val;
-        } else {
-            projects[pi][field] = val;
-        }
-        projects[pi].targetCost = projects[pi].contractNoVat * (projects[pi].costPercent / 100);
+    function editProject(idx) {
+        const p = projects[idx];
+        document.getElementById('editIdx').value = idx;
+        document.getElementById('pType').value = p.type;
+        document.getElementById('pName').value = p.name;
+        document.getElementById('pBranch').value = p.branch;
+        document.getElementById('pDept').value = p.dept;
+        document.getElementById('pContractVat').value = nf(p.contractVat);
+        document.getElementById('pCostPercent').value = p.costPercent;
+        document.getElementById('pTotalDist').value = p.totalDist;
         
-        if (projects[pi].type === 'normal' && projects[pi].totalDist > 0) {
-            projects[pi].routes.forEach(r => { r.initialBudget = (r.dist / projects[pi].totalDist) * projects[pi].targetCost; });
-        }
-        save();
+        document.getElementById('formTitle').innerText = "📝 แก้ไขรายละเอียดโครงการ";
+        document.getElementById('submitBtn').innerText = "อัปเดตข้อมูล";
+        document.getElementById('submitBtn').classList.replace('btn-blue', 'btn-green');
+        
+        window.scrollTo({top: 0, behavior: 'smooth'}); // เลื่อนจอขึ้นไปบนสุด
+    }
+
+    function resetForm() {
+        document.getElementById('editIdx').value = "-1";
+        document.getElementById('pName').value = ''; 
+        document.getElementById('pContractVat').value = '';
+        document.getElementById('pDept').value = '';
+        document.getElementById('pTotalDist').value = '';
+        document.getElementById('formTitle').innerText = "➕ สร้างโครงการใหม่";
+        document.getElementById('submitBtn').innerText = "สร้างโครงการ";
+        document.getElementById('submitBtn').classList.replace('btn-green', 'btn-blue');
     }
 
     function addRouteInline(pi) {
@@ -195,7 +217,7 @@
         save(); 
     }
 
-    // --- ฟังก์ชันส่งมอบงาน (Handover) ---
+    // --- Handover ---
     function addHandover(pi) {
         const count = document.getElementById(`hoCount-${pi}`).value;
         const checkboxes = document.querySelectorAll(`.hoCheck-${pi}:checked`);
@@ -208,16 +230,13 @@
             const ri = parseInt(cb.value);
             const r = projects[pi].routes[ri];
             selectedRoutes.push(r.name);
-            let curP1 = r.p1EngVat > 0 ? r.p1EngVat : r.p1SupVat; // ดึง P1 วิศวกรก่อน ถ้าไม่มีใช้ช่าง
+            let curP1 = r.p1EngVat > 0 ? r.p1EngVat : r.p1SupVat;
             totalP1 += curP1;
         });
 
         if(!projects[pi].handovers) projects[pi].handovers = [];
         projects[pi].handovers.push({
-            date: new Date().toISOString().split('T')[0],
-            count: count,
-            routes: selectedRoutes.join(', '),
-            totalP1: totalP1
+            date: new Date().toISOString().split('T')[0], count: count, routes: selectedRoutes.join(', '), totalP1: totalP1
         });
         save();
     }
@@ -228,7 +247,7 @@
         save();
     }
 
-    function save() { localStorage.setItem('kvr_master_v25', JSON.stringify(projects)); render(); }
+    function save() { localStorage.setItem('kvr_master_v26', JSON.stringify(projects)); render(); }
     function deleteProject(pi) { if(confirm("ยืนยันการลบโครงการนี้?")) { projects.splice(pi, 1); save(); } }
     function deleteRoute(pi, ri) { if(confirm("ยืนยันการลบเส้นทางซอยนี้?")) { projects[pi].routes.splice(ri, 1); save(); } }
     function deleteExp(pi, ri, ei) { if(confirm("ยืนยันการลบรายการจ่ายนี้?")) { projects[pi].routes[ri].expenses.splice(ei, 1); save(); } }
@@ -243,22 +262,18 @@
 
             list.innerHTML += `
                 <div class="card ${p.type==='openend'?'project-openend':'project-section'}">
-                    <button class="btn-red" style="float:right; scale:0.7" onclick="deleteProject(${pi})">ลบโครงการ</button>
                     
-                    <div style="display:flex; gap:10px; align-items:center; margin-bottom:15px;">
-                        <input class="inline-input" style="font-size:20px; width:35%;" value="${p.name}" onchange="updateProjectDetail(${pi}, 'name', this.value)" placeholder="ชื่อโครงการ">
-                        <select style="width:150px; font-family:'Sarabun'; border:none; background:transparent; font-size:16px; color:var(--primary); font-weight:bold;" onchange="updateProjectDetail(${pi}, 'branch', this.value)">
-                            ${branchOptions.map(b => `<option value="${b}" ${p.branch===b?'selected':''}>สาขา${b}</option>`).join('')}
-                        </select>
-                        <input class="inline-input" style="width:25%; color:var(--permit); font-size:16px;" value="${p.dept}" onchange="updateProjectDetail(${pi}, 'dept', this.value)" placeholder="กองงาน">
+                    <div style="float:right; display:flex; gap:5px;">
+                        <button class="btn-blue" onclick="editProject(${pi})">📝 แก้ไขรายละเอียด</button>
+                        <button class="btn-red" onclick="deleteProject(${pi})">ลบโครงการ</button>
                     </div>
+                    
+                    <h2>${p.name} <span style="font-size:14px; color:var(--primary)">[สาขา${p.branch}]</span> <span style="font-size:14px; color:var(--permit)">- กองงาน: ${p.dept}</span></h2>
 
                     <div class="summary-grid">
-                        <div class="summary-item"><span class="label">รวม VAT (แก้ได้)</span>
-                            <input class="inline-input" style="text-align:center; font-size:14px;" value="${nf(p.contractVat)}" oninput="formatInput(this)" onchange="updateProjectDetail(${pi}, 'contractVat', this.value)">
-                        </div>
+                        <div class="summary-item"><span class="label">รวม VAT</span><span class="val">${nf(p.contractVat)}</span></div>
                         <div class="summary-item"><span class="label">No VAT</span><span class="val">${nf(p.contractNoVat)}</span></div>
-                        <div class="summary-item"><span class="label">งบเป้าหมาย ( <input type="number" value="${p.costPercent}" style="width:40px; border:none; background:none; text-align:center; font-weight:bold; font-family:'Sarabun';" onchange="updateProjectDetail(${pi}, 'costPercent', this.value)"> %)</span><span class="val">${nf(p.targetCost)}</span></div>
+                        <div class="summary-item"><span class="label">งบเป้าหมาย (${p.costPercent}%)</span><span class="val">${nf(p.targetCost)}</span></div>
                         <div class="summary-item"><span class="label">จ่ายสะสม</span><span class="val" style="color:var(--danger)">${nf(totalSpent)}</span></div>
                         <div class="summary-item"><span class="label">คงเหลือรวม</span><span class="val">${nf(p.targetCost - totalSpent)}</span></div>
                     </div>
