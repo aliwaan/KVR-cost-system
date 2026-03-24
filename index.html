@@ -35,7 +35,6 @@
         .summary-item { background: #eef2f7; padding: 12px; border-radius: 8px; text-align: center; }
         
         .route-card { border-radius: 8px; padding: 15px; margin-top: 15px; border: 1px solid #d1d8e0; background: #fff; position: relative; }
-        
         .exp-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
         .exp-table th { background: #f8f9fa; color: #555; padding: 10px; text-align: left; border-bottom: 2px solid #eee; }
         .exp-table td { padding: 10px; border-bottom: 1px solid #eee; }
@@ -51,7 +50,7 @@
     <div class="login-box">
         <h1>Hello KVRdevelopment</h1>
         <p>ระบุรหัสผ่านเพื่อเข้าใช้งาน</p>
-        <input type="text" id="passInput" placeholder="พิมพ์ kvradmin" style="margin-bottom: 15px; text-align: center; font-weight: bold; color: var(--primary); font-size: 18px;">
+        <input type="text" id="passInput" placeholder="ใส่ password" style="margin-bottom: 15px; text-align: center; font-weight: bold; color: var(--primary); font-size: 18px;">
         <button class="btn-blue" onclick="checkPass()" style="width: 100%; padding: 12px;">เข้าใช้งาน</button>
         <p id="errorMsg" style="color: var(--danger); font-size: 12px; margin-top: 10px; display: none;">รหัสผ่านไม่ถูกต้องค่ะคุณว่าน</p>
     </div>
@@ -87,7 +86,7 @@
     const categories = ["ค่าแรง", "ค่าคอนกรีต", "ค่า asbuilt", "ค่าช่างคุมงาน", "ค่า ผจ.", "ค่า Food support", "ค่าตรวจรับงาน"];
     const statuses = ["เตรียมจ่าย", "จ่ายแล้ว", "บันทึกลง flowaccount แล้ว"];
     
-    let projects = JSON.parse(localStorage.getItem('kvrFinalSystem_v2')) || [];
+    let projects = JSON.parse(localStorage.getItem('kvrFinal_v3')) || [];
 
     function checkPass() {
         const input = document.getElementById('passInput').value;
@@ -106,7 +105,7 @@
         const costPercent = parseFloat(document.getElementById('pCostPercent').value);
         const totalDist = parseFloat(document.getElementById('pTotalDist').value) || 0;
 
-        if(!name || !contractVat) return alert("กรุณากรอกข้อมูลให้ครบถ้วนค่ะ");
+        if(!name || !contractVat) return alert("กรุณากรอกชื่อโครงการและราคาสัญญาค่ะ");
 
         const data = { 
             type, name, contractVat, contractNoVat: contractVat / 1.07, 
@@ -154,6 +153,20 @@
         }
     }
 
+    function editRoute(pIdx, rIdx) {
+        const r = projects[pIdx].routes[rIdx];
+        const newName = prompt("แก้ไขชื่อเส้นทาง:", r.name);
+        const newDist = prompt("แก้ไขระยะทาง (เมตร):", r.dist);
+        if(newName !== null) {
+            projects[pIdx].routes[rIdx].name = newName;
+            projects[pIdx].routes[rIdx].dist = parseFloat(newDist) || 0;
+            if(projects[pIdx].type === 'normal') {
+                projects[pIdx].routes[rIdx].initialBudget = (projects[pIdx].routes[rIdx].dist / projects[pIdx].totalDist) * projects[pIdx].targetCost;
+            }
+            save();
+        }
+    }
+
     function updateP1(pIdx, rIdx, field, val) { projects[pIdx].routes[rIdx][field] = parseFloat(val) || 0; save(); }
 
     function addExpense(pIdx, rIdx) {
@@ -177,7 +190,7 @@
     }
 
     function deleteProject(idx) { if(confirm("ลบโครงการ?")) { projects.splice(idx, 1); save(); } }
-    function save() { localStorage.setItem('kvrFinalSystem_v2', JSON.stringify(projects)); render(); }
+    function save() { localStorage.setItem('kvrFinal_v3', JSON.stringify(projects)); render(); }
 
     function render() {
         const list = document.getElementById('projectList');
@@ -210,10 +223,11 @@
 
                         return `
                             <div class="route-card">
+                                <button class="btn-edit" style="position:absolute; top:10px; right:10px; scale:0.7" onclick="editRoute(${pi}, ${ri})">แก้ชื่อ/เมตร</button>
                                 <h4>📍 ${r.name} (${r.dist} ม.)</h4>
                                 <div class="grid-p1-compare">
                                     <div><span class="label">P1 ช่าง</span><input type="number" value="${r.p1SupVat||''}" onchange="updateP1(${pi}, ${ri}, 'p1SupVat', this.value)"></div>
-                                    <div><span class="label" style="color:#8e44ad">P1 วิศวกร</span><input type="number" value="${r.p1EngVat||''}" onchange="updateP1(${pi}, ${ri}, 'p1EngVat', this.value)" style="border:1px solid #8e44ad"></div>
+                                    <div><span class="label" style="color:#8e44ad">P1 วิศวกร (Final)</span><input type="number" value="${r.p1EngVat||''}" onchange="updateP1(${pi}, ${ri}, 'p1EngVat', this.value)" style="border:1px solid #8e44ad"></div>
                                     <div><span class="label">งบเป้าหมาย</span><span class="val">${activeBudget.toLocaleString()}</span></div>
                                     <div><span class="label">คงเหลือ</span><span class="val" style="color:${(activeBudget-rSpent)<0?'red':'green'}">${(activeBudget-rSpent).toLocaleString()}</span></div>
                                 </div>
@@ -227,18 +241,11 @@
                                 </div>
 
                                 <table class="exp-table">
-                                    <thead>
-                                        <tr>
-                                            <th>วันที่</th><th>หมวด</th><th>ผู้รับเงิน</th><th>จำนวน</th><th>สถานะ</th><th></th>
-                                        </tr>
-                                    </thead>
+                                    <thead><tr><th>วันที่</th><th>หมวด</th><th>ผู้รับเงิน</th><th>จำนวน</th><th>สถานะ</th><th></th></tr></thead>
                                     <tbody>
                                         ${r.expenses.map((e, ei) => `
                                             <tr>
-                                                <td>${e.date}</td>
-                                                <td>${e.cat}</td>
-                                                <td>${e.payee}</td>
-                                                <td><b>${e.amt.toLocaleString()}</b></td>
+                                                <td>${e.date}</td><td>${e.cat}</td><td>${e.payee}</td><td><b>${e.amt.toLocaleString()}</b></td>
                                                 <td>
                                                     <select onchange="updateExpStatus(${pi}, ${ri}, ${ei}, this.value)" 
                                                         class="${e.status === statuses[0] ? 'status-prepare' : e.status === statuses[1] ? 'status-paid' : 'status-flow'}">
