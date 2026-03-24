@@ -3,35 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KVRdevelopment - Master Management System</title>
+    <title>KVRdevelopment - Master System Final</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #2980b9; --secondary: #27ae60; --danger: #e74c3c; --warning: #f39c12; --open-end: #e67e22; --bg: #f4f7f6; --dark: #2c3e50; --flow: #9b59b6; --permit: #8e44ad; }
+        :root { --primary: #2980b9; --secondary: #27ae60; --danger: #e74c3c; --warning: #f39c12; --open-end: #e67e22; --bg: #f4f7f6; --dark: #2c3e50; --permit: #8e44ad; --flow: #9b59b6; }
         body { font-family: 'Sarabun', sans-serif; background-color: var(--bg); margin: 0; padding: 20px; font-size: 13px; }
-        .container { max-width: 1400px; margin: auto; display: none; }
+        .container { max-width: 1500px; margin: auto; display: none; }
         #loginOverlay { position: fixed; inset: 0; background: var(--dark); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .login-box { background: white; padding: 40px; border-radius: 20px; text-align: center; width: 350px; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        .project-section { border-left: 10px solid var(--primary); }
-        .project-openend { border-left: 10px solid var(--open-end); }
-        .label { font-size: 0.8em; color: #666; display: block; margin-bottom: 3px; }
-        .val { font-weight: bold; color: var(--primary); display: block; }
+        .login-box { background: white; padding: 40px; border-radius: 20px; text-align: center; width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border-top: 5px solid #ddd; }
+        .project-section { border-top-color: var(--primary); }
+        .project-openend { border-top-color: var(--open-end); }
+        .label { font-size: 0.8em; color: #666; display: block; margin-bottom: 3px; font-weight: bold; }
+        .val { font-weight: bold; color: var(--primary); display: block; font-size: 15px; }
         button { padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         .btn-blue { background: var(--primary); color: white; }
         .btn-green { background: var(--secondary); color: white; }
         .btn-red { background: var(--danger); color: white; }
-        input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: 'Sarabun'; width: 100%; box-sizing: border-box; }
+        input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: 'Sarabun'; width: 100%; box-sizing: border-box; background: #fff; }
+        input:focus, select:focus { border-color: var(--primary); outline: none; background: #f0f7ff; }
         .route-card { border-radius: 8px; padding: 15px; margin-top: 15px; border: 1px solid #d1d8e0; background: #fff; position: relative; }
-        .grid-project-head { display: grid; grid-template-columns: 1fr 2fr 1.2fr 1fr 1fr auto; gap: 10px; margin-bottom: 15px; }
+        .grid-project-head { display: grid; grid-template-columns: 0.8fr 1.5fr 1.2fr 1.2fr 1fr 0.8fr 0.8fr auto; gap: 10px; margin-bottom: 15px; }
+        .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 15px 0; }
+        .summary-item { background: #eef2f7; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #d0dae5; }
+        .inline-add-route { background: #f0f7ff; padding: 15px; border-radius: 8px; border: 1px dashed var(--primary); display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr auto; gap: 10px; align-items: end; margin: 15px 0; }
         .grid-p1-compare { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; background: #fdfefe; padding: 12px; border-radius: 8px; margin: 10px 0; border: 1px solid #e0e6ed; }
-        .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
-        .summary-item { background: #eef2f7; padding: 12px; border-radius: 8px; text-align: center; }
         .exp-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
         .exp-table th { background: #f8f9fa; padding: 8px; text-align: left; border-bottom: 2px solid #eee; }
         .exp-table td { padding: 8px; border-bottom: 1px solid #eee; }
-        .inline-form { background: #f0f7ff; padding: 15px; border-radius: 8px; border: 1px dashed var(--primary); display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr auto; gap: 10px; align-items: end; margin: 15px 0; }
-        .cat-summary-table { width: 100%; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #eee; margin-top: 20px; }
-        .cat-summary-table th { background: var(--dark); color: #fff; padding: 10px; }
     </style>
 </head>
 <body>
@@ -39,7 +38,7 @@
 <div id="loginOverlay">
     <div class="login-box">
         <h1>Hello KVRdevelopment</h1>
-        <p>ระบุรหัสผ่านเพื่อเข้าใช้งาน</p>
+        <p>ระบุรหัสผ่านเพื่อเข้าใช้งานระบบ</p>
         <input type="text" id="passInput" placeholder="ใส่ password" style="margin-bottom: 15px; text-align: center; font-weight: bold; color: var(--primary); font-size: 18px;">
         <button class="btn-blue" onclick="checkPass()" style="width: 100%; padding: 12px;">เข้าใช้งาน</button>
     </div>
@@ -47,20 +46,32 @@
 
 <div class="container" id="mainContent">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
-        <h1 style="color: var(--dark);">🏗️ KVRdevelopment Master System</h1>
+        <h2 style="color: var(--dark); margin:0;">🏗️ KVRdevelopment Management System</h2>
         <button onclick="location.reload()" style="background:#7f8c8d; color:white;">ออกจากระบบ</button>
     </div>
 
-    <div class="card" id="projectFormContainer">
-        <h3 id="formTitle">➕ จัดการโครงการ</h3>
+    <div class="card" id="projectFormContainer" style="border-top: 5px solid var(--dark);">
+        <h3 id="formTitle" style="margin-top:0;">➕ จัดการข้อมูลโครงการ</h3>
         <div class="grid-project-head">
             <input type="hidden" id="editIdx" value="-1">
-            <div><span class="label">ประเภทงาน</span><select id="pType"><option value="normal">งานปกติ</option><option value="openend">งาน Open-end</option></select></div>
+            <div><span class="label">ประเภท</span><select id="pType"><option value="normal">งานปกติ</option><option value="openend">งาน Open-end</option></select></div>
             <div><span class="label">ชื่อโครงการ</span><input type="text" id="pName" placeholder="ระบุชื่อโครงการ"></div>
-            <div><span class="label">สัญญา (รวม VAT)</span><input type="number" id="pContractVat" placeholder="บาท"></div>
-            <div><span class="label">% ต้นทุนเป้าหมาย</span><input type="number" id="pCostPercent" value="70"></div>
-            <div><span class="label">ระยะรวม (เมตร)</span><input type="number" id="pTotalDist" placeholder="เมตร"></div>
-            <div style="align-self: end;"><button class="btn-blue" id="btnSubmitProject" onclick="addOrUpdateProject()">บันทึกโครงการ</button></div>
+            <div><span class="label">สาขา กปน.</span>
+                <select id="pBranch">
+                    <option value="">เลือกสาขา...</option>
+                    <option value="แม้นศรี">แม้นศรี</option><option value="พญาไท">พญาไท</option><option value="นนทบุรี">นนทบุรี</option>
+                    <option value="สมุทรปราการ">สมุทรปราการ</option><option value="พระโขนง">พระโขนง</option><option value="ทุ่งมหาเมฆ">ทุ่งมหาเมฆ</option>
+                    <option value="ลาดพร้าว">ลาดพร้าว</option><option value="ประชาชื่น">ประชาชื่น</option><option value="สุขสวัสดิ์">สุขสวัสดิ์</option>
+                    <option value="ตากสิน">ตากสิน</option><option value="บางกอกน้อย">บางกอกน้อย</option><option value="ภาษีเจริญ">ภาษีเจริญ</option>
+                    <option value="บางบัวทอง">บางบัวทอง</option><option value="มหาสวัสดิ์">มหาสวัสดิ์</option><option value="สุวรรณภูมิ">สุวรรณภูมิ</option>
+                    <option value="มีนบุรี">มีนบุรี</option><option value="แจ้งวัฒนะ">แจ้งวัฒนะ</option><option value="บางเขน">บางเขน</option>
+                </select>
+            </div>
+            <div><span class="label">ชื่อกองงาน</span><input type="text" id="pDept" placeholder="เช่น กองงาน กปน."></div>
+            <div><span class="label">สัญญา (VAT)</span><input type="number" id="pContractVat" placeholder="บาท"></div>
+            <div><span class="label">% เป้าหมาย</span><input type="number" id="pCostPercent" value="70"></div>
+            <div><span class="label">รวม (เมตร)</span><input type="number" id="pTotalDist" placeholder="เมตร"></div>
+            <div style="align-self: end;"><button class="btn-blue" id="btnSubmitProject" onclick="addOrUpdateProject()">บันทึกข้อมูล</button></div>
         </div>
     </div>
 
@@ -71,9 +82,9 @@
     const SECRET_PASS = "kvradmin";
     const categories = ["ค่าแรง", "ค่าคอนกรีต", "ค่า asbuilt", "ค่าช่างคุมงาน", "ค่า ผจ.", "ค่า Food support", "ค่าตรวจรับงาน"];
     const statuses = ["เตรียมจ่าย", "จ่ายแล้ว", "บันทึกลง flowaccount แล้ว"];
-    const routeStatuses = ["กำลังดำเนินการ", "รอใบอนุญาตจากหน่วยงานภายนอก", "ได้รับใบอนุญาตแล้ว", "วางท่อเสร็จสิ้น", "ส่งมอบงานแล้ว", "ระงับชั่วคราว"];
+    const routeStatuses = ["กำลังดำเนินการ", "รอใบอนุญาต", "ได้รับใบอนุญาตแล้ว", "วางท่อเสร็จสิ้น", "ส่งมอบงานแล้ว"];
     
-    let projects = JSON.parse(localStorage.getItem('kvr_master_v1')) || [];
+    let projects = JSON.parse(localStorage.getItem('kvr_final_check_v1')) || [];
 
     function checkPass() {
         if(document.getElementById('passInput').value === SECRET_PASS) {
@@ -87,11 +98,13 @@
         const idx = parseInt(document.getElementById('editIdx').value);
         const name = document.getElementById('pName').value;
         const contractVat = parseFloat(document.getElementById('pContractVat').value);
-        if(!name || !contractVat) return alert("กรุณากรอกข้อมูลให้ครบค่ะ");
+        if(!name || !contractVat) return;
 
         const data = { 
             type: document.getElementById('pType').value,
             name: name,
+            branch: document.getElementById('pBranch').value,
+            dept: document.getElementById('pDept').value,
             contractVat: contractVat,
             contractNoVat: contractVat / 1.07,
             costPercent: parseFloat(document.getElementById('pCostPercent').value),
@@ -111,18 +124,22 @@
         document.getElementById('editIdx').value = idx;
         document.getElementById('pType').value = p.type;
         document.getElementById('pName').value = p.name;
+        document.getElementById('pBranch').value = p.branch || '';
+        document.getElementById('pDept').value = p.dept || '';
         document.getElementById('pContractVat').value = p.contractVat;
         document.getElementById('pCostPercent').value = p.costPercent;
         document.getElementById('pTotalDist').value = p.totalDist;
-        document.getElementById('formTitle').innerText = "📝 แก้ไขโครงการ";
+        document.getElementById('formTitle').innerText = "📝 แก้ไขรายละเอียดโครงการ";
         window.scrollTo({top: 0, behavior: 'smooth'});
     }
 
     function resetProjectForm() {
         document.getElementById('editIdx').value = "-1";
         document.getElementById('pName').value = '';
+        document.getElementById('pBranch').value = '';
+        document.getElementById('pDept').value = '';
         document.getElementById('pContractVat').value = '';
-        document.getElementById('formTitle').innerText = "➕ จัดการโครงการ";
+        document.getElementById('formTitle').innerText = "➕ จัดการข้อมูลโครงการ";
     }
 
     function addRouteInline(pIdx) {
@@ -145,23 +162,8 @@
         save();
     }
 
-    function addHandover(pIdx) {
-        const count = document.getElementById(`hoCount-${pIdx}`).value;
-        const selectedRoutes = Array.from(document.querySelectorAll(`.hoCheck-${pIdx}:checked`)).map(cb => cb.value);
-        if(!count || selectedRoutes.length === 0) return alert("ระบุครั้งที่และเลือกเส้นทางด้วยค่ะ");
-        
-        let totalP1 = 0;
-        selectedRoutes.forEach(rName => {
-            const r = projects[pIdx].routes.find(route => route.name === rName);
-            totalP1 += (r.p1EngVat > 0 ? r.p1EngVat : r.p1SupVat);
-        });
-
-        projects[pIdx].handovers.push({ count, routes: selectedRoutes.join(', '), totalP1, date: new Date().toLocaleDateString() });
-        save();
-    }
-
     function updateP1(pIdx, rIdx, field, val) { projects[pIdx].routes[rIdx][field] = parseFloat(val) || 0; save(); }
-    
+
     function addExpense(pIdx, rIdx) {
         const payee = document.getElementById(`payee-${pIdx}-${rIdx}`).value;
         const amt = parseFloat(document.getElementById(`amt-${pIdx}-${rIdx}`).value);
@@ -174,9 +176,22 @@
         }
     }
 
-    function save() { localStorage.setItem('kvr_master_v1', JSON.stringify(projects)); render(); }
-    function deleteProject(idx) { if(confirm("ลบโครงการ?")) { projects.splice(idx, 1); save(); } }
-    function deleteRoute(pi, ri) { if(confirm("ลบเส้นทาง?")) { projects[pi].routes.splice(ri, 1); save(); } }
+    function addHandover(pIdx) {
+        const count = document.getElementById(`hoCount-${pIdx}`).value;
+        const selectedRoutes = Array.from(document.querySelectorAll(`.hoCheck-${pIdx}:checked`)).map(cb => cb.value);
+        if(!count || selectedRoutes.length === 0) return alert("เลือกเส้นทางที่ต้องการส่งมอบค่ะ");
+        let totalP1 = 0;
+        selectedRoutes.forEach(rName => {
+            const r = projects[pIdx].routes.find(route => route.name === rName);
+            totalP1 += (r.p1EngVat > 0 ? r.p1EngVat : r.p1SupVat);
+        });
+        projects[pIdx].handovers.push({ count, routes: selectedRoutes.join(', '), totalP1, date: new Date().toLocaleDateString() });
+        save();
+    }
+
+    function save() { localStorage.setItem('kvr_final_check_v1', JSON.stringify(projects)); render(); }
+    function deleteProject(idx) { if(confirm("ลบโครงการนี้?")) { projects.splice(idx, 1); save(); } }
+    function deleteRoute(pi, ri) { if(confirm("ลบเส้นทางนี้?")) { projects[pi].routes.splice(ri, 1); save(); } }
     function deleteExpense(pi, ri, ei) { projects[pi].routes[ri].expenses.splice(ei, 1); save(); }
 
     function render() {
@@ -191,20 +206,20 @@
             list.innerHTML += `
                 <div class="card ${isOE ? 'project-openend' : 'project-section'}">
                     <button class="btn-red" style="float:right; scale:0.7" onclick="deleteProject(${pi})">ลบโครงการ</button>
-                    <button class="btn-blue" style="float:right; scale:0.7; margin-right:5px;" onclick="editProject(${pi})">แก้ไขรายละเอียด</button>
-                    <h2 style="margin:0;">${p.name} <small style="font-size:12px; color:#888;">(${isOE?'Open-end':'ปกติ'})</small></h2>
+                    <button class="btn-blue" style="float:right; scale:0.7; margin-right:5px;" onclick="editProject(${pi})">แก้ไขข้อมูลโครงการ</button>
+                    <h2 style="margin:0;">${p.name} <span style="font-size:14px; color:var(--primary)">[สาขา${p.branch || 'ทั่วไป'}]</span> <span style="font-size:14px; color:var(--permit)">- ${p.dept || ''}</span></h2>
                     
                     <div class="summary-grid">
-                        <div class="summary-item"><span class="label">งบเป้าหมายรวม</span><span class="val">${p.targetCost.toLocaleString()}</span></div>
-                        <div class="summary-item"><span class="label">ระยะทางรวม</span><span class="val">${p.totalDist} ม.</span></div>
+                        <div class="summary-item"><span class="label">งบเป้าหมาย (No VAT)</span><span class="val">${p.targetCost.toLocaleString()}</span></div>
+                        <div class="summary-item"><span class="label">ระยะทางรวม</span><span class="val">${p.totalDist} เมตร</span></div>
                         <div class="summary-item"><span class="label">จ่ายจริงสะสม</span><span class="val" style="color:var(--danger)">${totalSpent.toLocaleString()}</span></div>
-                        <div class="summary-item"><span class="label">งบคงเหลือ</span><span class="val">${(p.targetCost - totalSpent).toLocaleString()}</span></div>
+                        <div class="summary-item"><span class="label">งบคงเหลือจ่ายได้</span><span class="val">${(p.targetCost - totalSpent).toLocaleString()}</span></div>
                     </div>
 
-                    <div class="inline-form">
-                        <div><span class="label">ชื่อเส้นทางใหม่</span><input type="text" id="newRName-${pi}" placeholder="เช่น ซอย 1"></div>
-                        <div><span class="label">ระยะทาง (ม.)</span><input type="number" id="newRDist-${pi}" placeholder="0"></div>
-                        <div>${isOE ? `<span class="label">งบเบื้องต้น</span><input type="number" id="newRBudget-${pi}" placeholder="บาท">` : ''}</div>
+                    <div class="inline-add-route">
+                        <div><span class="label">ชื่อซอย/เส้นทางใหม่</span><input type="text" id="newRName-${pi}" placeholder="เช่น ซอยสุขุมวิท 1"></div>
+                        <div><span class="label">ระยะทาง (เมตร)</span><input type="number" id="newRDist-${pi}" placeholder="0"></div>
+                        <div>${isOE ? `<span class="label">งบจัดสรร (P1)</span><input type="number" id="newRBudget-${pi}" placeholder="บาท">` : ''}</div>
                         <button class="btn-green" onclick="addRouteInline(${pi})">บันทึกเส้นทาง</button>
                     </div>
 
@@ -217,51 +232,52 @@
                         return `
                             <div class="route-card">
                                 <div style="display:grid; grid-template-columns: 2fr 1fr 1.5fr auto; gap:10px; align-items:end; margin-bottom:10px;">
-                                    <div><span class="label">แก้ไขชื่อเส้นทาง</span><input type="text" id="editRName-${pi}-${ri}" value="${r.name}" onchange="updateRouteInline(${pi}, ${ri})"></div>
-                                    <div><span class="label">ระยะทาง (ม.)</span><input type="number" id="editRDist-${pi}-${ri}" value="${r.dist}" onchange="updateRouteInline(${pi}, ${ri})"></div>
-                                    <div><span class="label">สถานะงาน</span><select id="editRStat-${pi}-${ri}" onchange="updateRouteInline(${pi}, ${ri})">${routeStatuses.map(s => `<option value="${s}" ${r.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
-                                    <button class="btn-red" style="scale:0.8" onclick="deleteRoute(${pi}, ${ri})">ลบ</button>
+                                    <div><span class="label">ชื่อเส้นทาง (พิมพ์เพื่อแก้)</span><input type="text" id="editRName-${pi}-${ri}" value="${r.name}" onchange="updateRouteInline(${pi}, ${ri})"></div>
+                                    <div><span class="label">เมตร (พิมพ์เพื่อแก้)</span><input type="number" id="editRDist-${pi}-${ri}" value="${r.dist}" onchange="updateRouteInline(${pi}, ${ri})"></div>
+                                    <div><span class="label">สถานะใบอนุญาต</span><select id="editRStat-${pi}-${ri}" onchange="updateRouteInline(${pi}, ${ri})">${routeStatuses.map(s => `<option value="${s}" ${r.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
+                                    <button class="btn-red" style="scale:0.8" onclick="deleteRoute(${pi}, ${ri})">ลบซอย</button>
                                 </div>
                                 <div class="grid-p1-compare">
                                     <div><span class="label">P1 ช่าง</span><input type="number" value="${r.p1SupVat||''}" onchange="updateP1(${pi}, ${ri}, 'p1SupVat', this.value)"></div>
                                     <div><span class="label" style="color:var(--permit)">P1 วิศวกร (Final)</span><input type="number" value="${r.p1EngVat||''}" onchange="updateP1(${pi}, ${ri}, 'p1EngVat', this.value)" style="border:1px solid var(--permit)"></div>
-                                    <div><span class="label">งบเป้าหมาย</span><span class="val">${activeBudget.toLocaleString()}</span></div>
+                                    <div><span class="label">งบเป้าหมาย</span><span class="val">${activeBudget.toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
                                     <div><span class="label">จ่ายแล้ว</span><span class="val">${rSpent.toLocaleString()}</span></div>
-                                    <div><span class="label">คงเหลือ</span><span class="val" style="color:${(activeBudget-rSpent)<0?'red':'green'}">${(activeBudget-rSpent).toLocaleString()}</span></div>
+                                    <div><span class="label">คงเหลือ</span><span class="val" style="color:${(activeBudget-rSpent)<0?'red':'green'}">${(activeBudget-rSpent).toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
                                 </div>
                                 <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1.5fr auto; gap:5px; background:#f9f9f9; padding:10px; border-radius:5px;">
                                     <select id="cat-${pi}-${ri}">${categories.map(c => `<option value="${c}">${c}</option>`).join('')}</select>
                                     <input type="text" id="payee-${pi}-${ri}" placeholder="ผู้รับเงิน">
                                     <input type="number" id="amt-${pi}-${ri}" placeholder="จำนวนเงิน">
                                     <select id="status-${pi}-${ri}">${statuses.map(s => `<option value="${s}">${s}</option>`).join('')}</select>
-                                    <button class="btn-blue" onclick="addExpense(${pi}, ${ri})">จ่าย</button>
+                                    <button class="btn-blue" onclick="addExpense(${pi}, ${ri})">บันทึกจ่าย</button>
                                 </div>
                                 <table class="exp-table">
-                                    <tbody>${r.expenses.map((e, ei) => `<tr><td>${e.date}</td><td>${e.cat}</td><td>${e.payee}</td><td>${e.amt.toLocaleString()}</td><td>${e.status}</td><td><button onclick="deleteExpense(${pi}, ${ri}, ${ei})" style="background:none; color:red; cursor:pointer;">x</button></td></tr>`).join('')}</tbody>
+                                    <tbody>${r.expenses.map((e, ei) => `<tr><td>${e.date}</td><td>${e.cat}</td><td>${e.payee}</td><td><b>${e.amt.toLocaleString()}</b></td><td>${e.status}</td><td><button onclick="deleteExpense(${pi}, ${ri}, ${ei})" style="background:none; color:red; cursor:pointer;">x</button></td></tr>`).join('')}</tbody>
                                 </table>
                             </div>
                         `;
                     }).join('')}
 
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:20px;">
-                        <div class="card">
-                            <h3>📊 สรุปแยกหมวดหมู่</h3>
-                            <table class="cat-summary-table">
-                                ${categories.map(c => `<tr><td>${c}</td><td style="text-align:right; font-weight:bold;">${catSum[c].toLocaleString()}</td></tr>`).join('')}
+                        <div class="card" style="border-top-color: var(--dark);">
+                            <h3>📊 สรุปจ่ายแยกหมวดหมู่</h3>
+                            <table class="exp-table">
+                                ${categories.map(c => `<tr><td>${c}</td><td style="text-align:right; font-weight:bold;">${catSum[c].toLocaleString()} บาท</td></tr>`).join('')}
                             </table>
                         </div>
-                        <div class="card">
-                            <h3>🚚 ส่งมอบงาน</h3>
+                        <div class="card" style="border-top-color: var(--dark);">
+                            <h3>🚚 เมนูส่งมอบงาน</h3>
                             <div style="display:flex; gap:5px; margin-bottom:10px;">
-                                <input type="text" id="hoCount-${pi}" placeholder="ครั้งที่..." style="width:80px;">
-                                <button class="btn-green" onclick="addHandover(${pi})">บันทึกส่งงาน</button>
+                                <input type="text" id="hoCount-${pi}" placeholder="ครั้งที่..." style="width:100px;">
+                                <button class="btn-green" onclick="addHandover(${pi})">บันทึกประวัติส่งงาน</button>
                             </div>
-                            <div style="font-size:11px; margin-bottom:10px;">
-                                ${p.routes.map(r => `<label style="margin-right:10px;"><input type="checkbox" class="hoCheck-${pi}" value="${r.name}"> ${r.name}</label>`).join('')}
+                            <div style="font-size:11px; margin-bottom:10px; background:#f9f9f9; padding:10px; border-radius:5px;">
+                                <p style="margin:0 0 5px 0; font-weight:bold;">เลือกเส้นทางที่รวมในงวดนี้:</p>
+                                ${p.routes.map(r => `<label style="margin-right:15px; display:inline-block;"><input type="checkbox" class="hoCheck-${pi}" value="${r.name}"> ${r.name}</label>`).join('')}
                             </div>
                             <table class="exp-table">
-                                <thead><tr><th>ครั้งที่</th><th>เส้นทาง</th><th>ยอด P1</th></tr></thead>
-                                <tbody>${(p.handovers||[]).map(h => `<tr><td>${h.count}</td><td>${h.routes}</td><td>${h.totalP1.toLocaleString()}</td></tr>`).join('')}</tbody>
+                                <thead><tr><th>ครั้งที่</th><th>เส้นทางที่ส่ง</th><th>ยอด P1 รวม</th></tr></thead>
+                                <tbody>${(p.handovers||[]).map(h => `<tr><td>${h.count}</td><td>${h.routes}</td><td><b>${h.totalP1.toLocaleString()}</b></td></tr>`).join('')}</tbody>
                             </table>
                         </div>
                     </div>
