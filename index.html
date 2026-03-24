@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KVRdevelopment - Master System Final Accounting</title>
+    <title>KVRdevelopment - Master Management System</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #2980b9; --secondary: #27ae60; --danger: #e74c3c; --warning: #f39c12; --bg: #f4f7f6; --dark: #2c3e50; --permit: #8e44ad; }
         body { font-family: 'Sarabun', sans-serif; background-color: var(--bg); margin: 0; padding: 20px; font-size: 13px; }
-        .container { max-width: 1500px; margin: auto; display: none; }
+        .container { max-width: 1550px; margin: auto; display: none; }
         #loginOverlay { position: fixed; inset: 0; background: var(--dark); display: flex; justify-content: center; align-items: center; z-index: 1000; }
         .login-box { background: white; padding: 40px; border-radius: 20px; text-align: center; width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border-top: 5px solid #ddd; }
@@ -23,11 +23,9 @@
         .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 15px 0; }
         .summary-item { background: #eef2f7; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #d0dae5; }
         .route-card { border-radius: 8px; padding: 15px; margin-top: 15px; border: 1px solid #d1d8e0; background: #fff; position: relative; }
-        .grid-p1-compare { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; background: #fdfefe; padding: 12px; border-radius: 8px; margin: 10px 0; border: 1px solid #e0e6ed; }
+        .grid-p1-compare { display: grid; grid-template-columns: 1fr 1fr 1.2fr 1fr 1.2fr; gap: 10px; background: #fdfefe; padding: 12px; border-radius: 8px; margin: 10px 0; border: 1px solid #e0e6ed; }
         .exp-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
         .exp-table td, .exp-table th { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
-        .edit-row input, .edit-row select { padding: 4px; font-size: 12px; border: 1px solid transparent; }
-        .edit-row input:focus { border: 1px solid var(--primary); background: #fff; }
     </style>
 </head>
 <body>
@@ -36,7 +34,7 @@
     <div class="login-box">
         <h1>Hello KVRdevelopment</h1>
         <p>ระบุรหัสผ่านเพื่อเข้าใช้งาน</p>
-        <input type="text" id="passInput" placeholder="ใส่ password" style="margin-bottom: 15px; text-align: center; font-weight: bold; color: var(--primary); font-size: 18px;">
+        <input type="text" id="passInput" placeholder="ใส่ password" onkeyup="if(event.key==='Enter') checkPass()" style="margin-bottom: 15px; text-align: center; font-weight: bold; color: var(--primary); font-size: 18px;">
         <button class="btn-blue" onclick="checkPass()" style="width: 100%; padding: 12px;">เข้าใช้งาน</button>
     </div>
 </div>
@@ -44,7 +42,7 @@
 <div class="container" id="mainContent">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
         <h2 style="color: var(--dark); margin:0;">🏗️ KVRdevelopment System</h2>
-        <button onclick="location.reload()" style="background:#7f8c8d; color:white;">ออกจากระบบ</button>
+        <button onclick="logout()" style="background:#7f8c8d; color:white;">ออกจากระบบ</button>
     </div>
 
     <div class="card" style="border-top: 5px solid var(--dark);">
@@ -52,7 +50,7 @@
         <div class="grid-project-head">
             <input type="hidden" id="editIdx" value="-1">
             <div><span class="label">ประเภท</span><select id="pType"><option value="normal">งานปกติ</option><option value="openend">งาน Open-end</option></select></div>
-            <div><span class="label">ชื่อโครงการ</span><input type="text" id="pName" placeholder="ชื่อโครงการ"></div>
+            <div><span class="label">ชื่อโครงการ</span><input type="text" id="pName" placeholder="ชื่อโครงการ" onkeyup="if(event.key==='Enter') addOrUpdateProject()"></div>
             <div><span class="label">สาขา กปน.</span>
                 <select id="pBranch">
                     <option value="">เลือกสาขา...</option>
@@ -64,11 +62,11 @@
                     <option value="มีนบุรี">มีนบุรี</option><option value="แจ้งวัฒนะ">แจ้งวัฒนะ</option><option value="บางเขน">บางเขน</option>
                 </select>
             </div>
-            <div><span class="label">กองงาน</span><input type="text" id="pDept" placeholder="ระบุกองงาน"></div>
-            <div><span class="label">สัญญา (VAT)</span><input type="text" id="pContractVat" placeholder="0" oninput="formatInput(this)"></div>
-            <div><span class="label">% เป้าหมาย</span><input type="number" id="pCostPercent" value="70"></div>
-            <div><span class="label">รวม (เมตร)</span><input type="number" id="pTotalDist" placeholder="0"></div>
-            <div style="align-self: end;"><button class="btn-blue" onclick="addOrUpdateProject()">บันทึก</button></div>
+            <div><span class="label">กองงาน</span><input type="text" id="pDept" placeholder="ระบุกองงาน" onkeyup="if(event.key==='Enter') addOrUpdateProject()"></div>
+            <div><span class="label">สัญญา (VAT)</span><input type="text" id="pContractVat" placeholder="0" oninput="formatInput(this)" onkeyup="if(event.key==='Enter') addOrUpdateProject()"></div>
+            <div><span class="label">% เป้าหมาย</span><input type="number" id="pCostPercent" value="70" onkeyup="if(event.key==='Enter') addOrUpdateProject()"></div>
+            <div><span class="label">รวม (เมตร)</span><input type="number" id="pTotalDist" placeholder="0" onkeyup="if(event.key==='Enter') addOrUpdateProject()"></div>
+            <div style="align-self: end;"><button class="btn-blue" onclick="addOrUpdateProject()">บันทึกโครงการ</button></div>
         </div>
     </div>
 
@@ -81,9 +79,34 @@
     const statuses = ["เตรียมจ่าย", "จ่ายแล้ว", "บันทึกลง flowaccount แล้ว"];
     const routeStatuses = ["ยังไม่เริ่มงาน", "กำลังดำเนินการ", "รอใบอนุญาต", "ได้รับใบอนุญาตแล้ว", "วางท่อเสร็จสิ้น", "ส่งมอบงานแล้ว", "ระงับการดำเนินการ"];
     
-    let projects = JSON.parse(localStorage.getItem('kvr_master_acc_v5')) || [];
+    let projects = JSON.parse(localStorage.getItem('kvr_final_master')) || [];
 
-    // ฟังก์ชันจัดการ Comma ขณะพิมพ์
+    // --- Smart Login ---
+    window.onload = function() {
+        const lastLogin = localStorage.getItem('kvr_session');
+        if (lastLogin && (new Date().getTime() - lastLogin) / 60000 < 10) {
+            showApp();
+        }
+    };
+
+    function checkPass() {
+        if(document.getElementById('passInput').value === SECRET_PASS) showApp();
+        else alert("รหัสผ่านไม่ถูกต้อง");
+    }
+
+    function showApp() {
+        localStorage.setItem('kvr_session', new Date().getTime());
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+        render();
+    }
+
+    function logout() {
+        localStorage.removeItem('kvr_session');
+        location.reload();
+    }
+
+    // --- Accounting Helpers ---
     function formatInput(el) {
         let val = el.value.replace(/,/g, '');
         if(!isNaN(val) && val !== "") el.value = Number(val).toLocaleString('en-US');
@@ -91,33 +114,23 @@
     function unformat(str) { return parseFloat(str.toString().replace(/,/g, '')) || 0; }
     function nf(num) { return Number(num).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
-    function checkPass() {
-        if(document.getElementById('passInput').value === SECRET_PASS) {
-            document.getElementById('loginOverlay').style.display = 'none';
-            document.getElementById('mainContent').style.display = 'block';
-            render();
-        }
-    }
-
+    // --- CRUD Logic ---
     function addOrUpdateProject() {
-        const idx = parseInt(document.getElementById('editIdx').value);
         const name = document.getElementById('pName').value;
         const contractVat = unformat(document.getElementById('pContractVat').value);
         if(!name || !contractVat) return;
 
         const data = { 
             type: document.getElementById('pType').value,
-            name: name,
-            branch: document.getElementById('pBranch').value,
+            name: name, branch: document.getElementById('pBranch').value,
             dept: document.getElementById('pDept').value,
             contractVat: contractVat,
             costPercent: parseFloat(document.getElementById('pCostPercent').value),
             targetCost: (contractVat / 1.07) * (parseFloat(document.getElementById('pCostPercent').value) / 100),
             totalDist: parseFloat(document.getElementById('pTotalDist').value) || 0,
-            routes: idx === -1 ? [] : projects[idx].routes,
-            handovers: idx === -1 ? [] : (projects[idx].handovers || [])
+            routes: []
         };
-        if(idx === -1) projects.push(data); else projects[idx] = data;
+        projects.push(data);
         save();
         resetProjectForm();
     }
@@ -125,9 +138,8 @@
     function addRouteInline(pIdx) {
         const name = document.getElementById(`newRName-${pIdx}`).value;
         const dist = parseFloat(document.getElementById(`newRDist-${pIdx}`).value) || 0;
-        const manualBudget = unformat(document.getElementById(`newRBudget-${pIdx}`)?.value || 0);
         if(!name) return;
-        let budget = (projects[pIdx].type === 'normal') ? (dist / projects[pIdx].totalDist) * projects[pIdx].targetCost : manualBudget;
+        let budget = (projects[pIdx].type === 'normal') ? (dist / projects[pIdx].totalDist) * projects[pIdx].targetCost : 0;
         projects[pIdx].routes.push({ name, dist, initialBudget: budget, p1SupVat: 0, p1EngVat: 0, status: routeStatuses[0], expenses: [] });
         save();
     }
@@ -142,21 +154,14 @@
         }
     }
 
-    function updateExpense(pIdx, rIdx, eIdx, field, val) {
-        if(field === 'amt') val = unformat(val);
-        projects[pIdx].routes[rIdx].expenses[eIdx][field] = val;
+    function updateField(pIdx, rIdx, field, val) {
+        projects[pIdx].routes[rIdx][field] = unformat(val);
         save();
     }
 
-    function save() { localStorage.setItem('kvr_master_acc_v5', JSON.stringify(projects)); render(); }
+    function save() { localStorage.setItem('kvr_final_master', JSON.stringify(projects)); render(); }
     function deleteProject(idx) { if(confirm("ลบโครงการ?")) { projects.splice(idx, 1); save(); } }
-    function resetProjectForm() {
-        document.getElementById('editIdx').value = "-1";
-        document.getElementById('pName').value = '';
-        document.getElementById('pContractVat').value = '';
-        document.getElementById('pBranch').value = '';
-        document.getElementById('pDept').value = '';
-    }
+    function resetProjectForm() { document.getElementById('pName').value = ''; document.getElementById('pContractVat').value = ''; }
 
     function render() {
         const list = document.getElementById('projectList');
@@ -169,64 +174,48 @@
                 <div class="card ${p.type==='openend'?'project-openend':'project-section'}">
                     <button class="btn-red" style="float:right; scale:0.7" onclick="deleteProject(${pi})">ลบโครงการ</button>
                     <h2>${p.name} <span style="font-size:14px; color:var(--primary)">[สาขา${p.branch}]</span></h2>
-                    
                     <div class="summary-grid">
-                        <div class="summary-item"><span class="label">งบเป้าหมาย (No VAT)</span><span class="val">${nf(p.targetCost)}</span></div>
-                        <div class="summary-item"><span class="label">ระยะรวม</span><span class="val">${p.totalDist.toLocaleString()} ม.</span></div>
+                        <div class="summary-item"><span class="label">งบเป้าหมายรวม</span><span class="val">${nf(p.targetCost)}</span></div>
                         <div class="summary-item"><span class="label">จ่ายสะสม</span><span class="val" style="color:var(--danger)">${nf(totalSpent)}</span></div>
                         <div class="summary-item"><span class="label">คงเหลือ</span><span class="val">${nf(p.targetCost - totalSpent)}</span></div>
                     </div>
 
                     ${p.routes.map((r, ri) => {
-                        let budget = r.initialBudget;
-                        if (r.p1EngVat > 0) budget = (r.p1EngVat / 1.07) * (p.costPercent / 100);
-                        else if (r.p1SupVat > 0) budget = (r.p1SupVat / 1.07) * (p.costPercent / 100);
+                        let curP1 = r.p1EngVat > 0 ? r.p1EngVat : r.p1SupVat;
+                        let routeBudget = curP1 > 0 ? (curP1 / 1.07) * (p.costPercent / 100) : r.initialBudget;
                         const spent = r.expenses.reduce((s, e) => s + e.amt, 0);
 
                         return `
                             <div class="route-card">
-                                <h4>📍 ${r.name} (${r.dist} ม.) | สถานะ: ${r.status}</h4>
-                                <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr 1.5fr 1fr auto; gap:5px; background:#f9f9f9; padding:10px; border-radius:5px; align-items:end; margin-bottom:10px;">
-                                    <div><span class="label">วันที่จ่าย</span><input type="date" id="expDate-${pi}-${ri}"></div>
-                                    <div><span class="label">หมวด</span><select id="cat-${pi}-${ri}">${categories.map(c => `<option value="${c}">${c}</option>`).join('')}</select></div>
-                                    <div><span class="label">ผู้รับเงิน</span><input type="text" id="payee-${pi}-${ri}" placeholder="ระบุ..."></div>
-                                    <div><span class="label">จำนวนเงิน</span><input type="text" id="amt-${pi}-${ri}" oninput="formatInput(this)" placeholder="0"></div>
-                                    <div><span class="label">สถานะ</span><select id="status-${pi}-${ri}">${statuses.map(s => `<option value="${s}">${s}</option>`).join('')}</select></div>
+                                <h4>📍 ${r.name} (${r.dist} ม.) | ${r.status}</h4>
+                                <div class="grid-p1-compare">
+                                    <div><span class="label">P1 ช่าง</span><input type="text" value="${nf(r.p1SupVat)}" oninput="formatInput(this)" onchange="updateField(${pi}, ${ri}, 'p1SupVat', this.value)"></div>
+                                    <div><span class="label">P1 วิศวกร</span><input type="text" value="${nf(r.p1EngVat)}" oninput="formatInput(this)" onchange="updateField(${pi}, ${ri}, 'p1EngVat', this.value)"></div>
+                                    <div><span class="label">งบประมาณ</span><span class="val">${nf(routeBudget)}</span></div>
+                                    <div><span class="label">คงเหลือที่จ่ายได้</span><span class="val" style="color:${(routeBudget-spent)<0?'red':'green'}">${nf(routeBudget-spent)}</span></div>
+                                </div>
+                                <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr 1.5fr 1fr auto; gap:5px; background:#f9f9f9; padding:10px; border-radius:5px; align-items:end;">
+                                    <div><input type="date" id="expDate-${pi}-${ri}"></div>
+                                    <div><select id="cat-${pi}-${ri}">${categories.map(c => `<option value="${c}">${c}</option>`).join('')}</select></div>
+                                    <div><input type="text" id="payee-${pi}-${ri}" placeholder="ผู้รับเงิน" onkeyup="if(event.key==='Enter') addExpense(${pi}, ${ri})"></div>
+                                    <div><input type="text" id="amt-${pi}-${ri}" oninput="formatInput(this)" onkeyup="if(event.key==='Enter') addExpense(${pi}, ${ri})" placeholder="จำนวน"></div>
+                                    <div><select id="status-${pi}-${ri}">${statuses.map(s => `<option value="${s}">${s}</option>`).join('')}</select></div>
                                     <button class="btn-blue" onclick="addExpense(${pi}, ${ri})">บันทึก</button>
                                 </div>
-                                <table class="exp-table">
-                                    <thead><tr><th>ว/ด/ป</th><th>หมวด</th><th>ผู้รับเงิน</th><th>จำนวนเงิน</th><th>สถานะ</th><th>ลบ</th></tr></thead>
-                                    <tbody>${r.expenses.map((e, ei) => `
-                                        <tr class="edit-row">
-                                            <td><input type="date" value="${e.date}" onchange="updateExpense(${pi}, ${ri}, ${ei}, 'date', this.value)"></td>
-                                            <td><select onchange="updateExpense(${pi}, ${ri}, ${ei}, 'cat', this.value)">${categories.map(c => `<option value="${c}" ${e.cat===c?'selected':''}>${c}</option>`).join('')}</select></td>
-                                            <td><input type="text" value="${e.payee}" onchange="updateExpense(${pi}, ${ri}, ${ei}, 'payee', this.value)"></td>
-                                            <td><input type="text" value="${nf(e.amt)}" oninput="formatInput(this)" onchange="updateExpense(${pi}, ${ri}, ${ei}, 'amt', this.value)" style="font-weight:bold; color:var(--primary);"></td>
-                                            <td><select onchange="updateExpense(${pi}, ${ri}, ${ei}, 'status', this.value)">${statuses.map(s => `<option value="${s}" ${e.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
-                                            <td><button class="btn-red" style="padding:2px 5px;" onclick="deleteExpense(${pi}, ${ri}, ${ei})">x</button></td>
-                                        </tr>`).join('')}</tbody>
-                                </table>
-                                <div style="margin-top:10px; text-align:right;">
-                                    <span class="label">ยอด P1 วิศวกร:</span>
-                                    <input type="text" value="${nf(r.p1EngVat)}" oninput="formatInput(this)" onchange="updateP1(${pi}, ${ri}, 'p1EngVat', this.value)" style="width:150px; text-align:right; font-weight:bold;">
-                                </div>
+                                <table class="exp-table"><tbody>${r.expenses.map(e => `<tr><td>${e.date}</td><td>${e.cat}</td><td>${e.payee}</td><td><b>${nf(e.amt)}</b></td><td>${e.status}</td></tr>`).join('')}</tbody></table>
                             </div>
                         `;
                     }).join('')}
                     
-                    <div style="background:#f0f7ff; padding:15px; border-radius:8px; margin-top:20px; display:grid; grid-template-columns: 2fr 1fr 1fr auto; gap:10px; align-items:end;">
-                        <div><span class="label">ชื่อเส้นทาง/ซอยใหม่</span><input type="text" id="newRName-${pi}" placeholder="ซอย..."></div>
-                        <div><span class="label">ระยะทาง (ม.)</span><input type="number" id="newRDist-${pi}" placeholder="0"></div>
-                        <div>${p.type==='openend'?`<span class="label">งบจัดสรร</span><input type="text" id="newRBudget-${pi}" oninput="formatInput(this)">`:''}</div>
+                    <div style="background:#f0f7ff; padding:15px; border-radius:8px; margin-top:20px; display:grid; grid-template-columns: 2fr 1fr auto; gap:10px; align-items:end;">
+                        <div><span class="label">ชื่อซอยใหม่</span><input type="text" id="newRName-${pi}" placeholder="ซอย..." onkeyup="if(event.key==='Enter') addRouteInline(${pi})"></div>
+                        <div><span class="label">เมตร</span><input type="number" id="newRDist-${pi}" onkeyup="if(event.key==='Enter') addRouteInline(${pi})"></div>
                         <button class="btn-green" onclick="addRouteInline(${pi})">เพิ่มเส้นทาง</button>
                     </div>
                 </div>
             `;
         });
     }
-    function updateP1(pi, ri, f, v) { projects[pi].routes[ri][f] = unformat(v); save(); }
-    function deleteExpense(pi, ri, ei) { projects[pi].routes[ri].expenses.splice(ei, 1); save(); }
-    function deleteRoute(pi, ri) { projects[pi].routes.splice(ri, 1); save(); }
 </script>
 </body>
 </html>
