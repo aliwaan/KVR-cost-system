@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KVRdevelopment - Master System Final Pro</title>
+    <title>KVRdevelopment - Master System Analytics</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #2980b9; --secondary: #27ae60; --danger: #e74c3c; --warning: #f39c12; --bg: #f4f7f6; --dark: #2c3e50; --permit: #8e44ad; }
@@ -26,7 +26,13 @@
         .summary-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 15px 0; }
         .summary-item { background: #eef2f7; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #d0dae5; }
         .route-card { border-radius: 8px; padding: 15px; margin-top: 15px; border: 1px solid #d1d8e0; background: #fff; position: relative; }
-        .grid-p1-compare { display: grid; grid-template-columns: 1fr 1fr 1.2fr 1fr 1.2fr; gap: 10px; background: #fdfefe; padding: 12px; border-radius: 8px; margin: 10px 0; border: 1px solid #e0e6ed; }
+        
+        /* สไตล์ใหม่สำหรับ P1 4 ช่อง และการเปรียบเทียบ */
+        .p1-section { background: #fdfefe; padding: 12px; border-radius: 8px; border: 1px solid #e0e6ed; margin: 10px 0; }
+        .p1-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }
+        .compare-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: #fff8e1; padding: 10px; border-radius: 6px; border: 1px dashed #f39c12; }
+        .budget-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; background: #f4f7f6; padding: 10px; border-radius: 6px; }
+        
         .exp-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
         .exp-table td, .exp-table th { padding: 6px; border-bottom: 1px solid #eee; text-align: left; }
         
@@ -93,7 +99,7 @@
     const routeStatuses = ["ยังไม่เริ่มงาน", "กำลังดำเนินการ", "รอใบอนุญาต", "ได้รับใบอนุญาตแล้ว", "วางท่อเสร็จสิ้น", "ส่งมอบงานแล้ว", "ระงับการดำเนินการ"];
     const branchOptions = ["แม้นศรี", "พญาไท", "นนทบุรี", "สมุทรปราการ", "พระโขนง", "ทุ่งมหาเมฆ", "ลาดพร้าว", "ประชาชื่น", "สุขสวัสดิ์", "ตากสิน", "บางกอกน้อย", "ภาษีเจริญ", "บางบัวทอง", "มหาสวัสดิ์", "สุวรรณภูมิ", "มีนบุรี", "แจ้งวัฒนะ", "บางเขน"];
 
-    let projects = JSON.parse(localStorage.getItem('kvr_master_v27')) || [];
+    let projects = JSON.parse(localStorage.getItem('kvr_master_v28')) || [];
 
     // --- Smart Login ---
     window.onload = function() {
@@ -192,7 +198,13 @@
         const dist = document.getElementById(`newRDist-${pi}`).value;
         if(!name) return;
         let budget = (projects[pi].totalDist > 0) ? (parseFloat(dist) / projects[pi].totalDist) * projects[pi].targetCost : 0;
-        projects[pi].routes.push({ name, dist: parseFloat(dist), initialBudget: budget, p1SupVat: 0, p1EngVat: 0, status: routeStatuses[0], expenses: [] });
+        // เพิ่มฟิลด์ p1SelfVat, compareA, compareB สำหรับระบบวิเคราะห์ใหม่
+        projects[pi].routes.push({ 
+            name, dist: parseFloat(dist), initialBudget: budget, 
+            p1SelfVat: 0, p1SupVat: 0, p1EngVat: 0, 
+            compareA: 'p1Dist', compareB: 'p1Eng',
+            status: routeStatuses[0], expenses: [] 
+        });
         save();
     }
 
@@ -206,6 +218,7 @@
     }
 
     function updateP1(pi, ri, field, val) { projects[pi].routes[ri][field] = unformat(val); save(); }
+    function updateCompare(pi, ri, field, val) { projects[pi].routes[ri][field] = val; save(); }
 
     function addExpense(pi, ri) {
         const date = document.getElementById(`expDate-${pi}-${ri}`).value || new Date().toISOString().split('T')[0];
@@ -236,7 +249,8 @@
             const ri = parseInt(cb.value);
             const r = projects[pi].routes[ri];
             selectedRoutes.push(r.name);
-            let curP1 = r.p1EngVat > 0 ? r.p1EngVat : r.p1SupVat;
+            // ดึง P1 สูงสุดที่มีข้อมูล (วิศวกร -> ช่าง -> ประเมินเอง)
+            let curP1 = r.p1EngVat > 0 ? r.p1EngVat : (r.p1SupVat > 0 ? r.p1SupVat : (r.p1SelfVat > 0 ? r.p1SelfVat : 0));
             totalP1 += curP1;
         });
 
@@ -253,7 +267,7 @@
         save();
     }
 
-    function save() { localStorage.setItem('kvr_master_v27', JSON.stringify(projects)); render(); }
+    function save() { localStorage.setItem('kvr_master_v28', JSON.stringify(projects)); render(); }
     function deleteProject(pi) { if(confirm("ยืนยันการลบโครงการนี้?")) { projects.splice(pi, 1); save(); } }
     function deleteRoute(pi, ri) { if(confirm("ยืนยันการลบเส้นทางซอยนี้?")) { projects[pi].routes.splice(ri, 1); save(); } }
     function deleteExp(pi, ri, ei) { if(confirm("ยืนยันการลบรายการจ่ายนี้?")) { projects[pi].routes[ri].expenses.splice(ei, 1); save(); } }
@@ -285,10 +299,24 @@
                     </div>
 
                     ${p.routes.map((r, ri) => {
-                        let curP1 = r.p1EngVat > 0 ? r.p1EngVat : r.p1SupVat;
+                        // คำนวณ P1 ประเมินจากเส้นทาง (p1Dist)
+                        let p1Dist = p.totalDist > 0 ? (r.dist / p.totalDist) * p.contractVat : 0;
+                        let p1Self = r.p1SelfVat || 0;
+                        let p1Sup = r.p1SupVat || 0;
+                        let p1Eng = r.p1EngVat || 0;
+
+                        // เลือกว่าจะใช้งบซอยจาก P1 ตัวไหน (เรียงลำดับความสำคัญ วิศวกร -> ช่าง -> ประเมินเอง)
+                        let curP1 = p1Eng > 0 ? p1Eng : (p1Sup > 0 ? p1Sup : (p1Self > 0 ? p1Self : 0));
                         let routeBudget = curP1 > 0 ? (curP1 / 1.07) * (p.costPercent / 100) : r.initialBudget;
-                        let estimatedP1Vat = p.totalDist > 0 ? (r.dist / p.totalDist) * p.contractVat : 0; // คำนวณ P1 จากสัดส่วนเมตร
                         const spent = r.expenses.reduce((s, e) => s + e.amt, 0);
+
+                        // ระบบเปรียบเทียบ P1
+                        let p1Dict = { 'p1Dist': p1Dist, 'p1Self': p1Self, 'p1Sup': p1Sup, 'p1Eng': p1Eng };
+                        let valA = p1Dict[r.compareA || 'p1Dist'];
+                        let valB = p1Dict[r.compareB || 'p1Eng'];
+                        let diffBaht = valA - valB;
+                        let diffPercent = valB > 0 ? (diffBaht / valB) * 100 : 0;
+                        let diffColor = diffBaht > 0 ? 'green' : (diffBaht < 0 ? 'red' : 'gray');
 
                         return `
                             <div class="route-card">
@@ -303,17 +331,39 @@
                                     <button class="btn-red" style="padding:4px 8px; font-size:11px;" onclick="deleteRoute(${pi}, ${ri})">ลบซอย</button>
                                 </div>
 
-                                <div style="background:#f0f4f8; border:1px dashed #aab7c4; padding:8px 12px; border-radius:6px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-                                    <span style="font-weight:bold; color:var(--dark); font-size:13px;">💡 P1 ประเมินตามระยะทาง (${r.dist} ม.): <span style="color:var(--primary); font-size:15px;">${nf(estimatedP1Vat)}</span> บาท</span>
-                                    <span style="color:#666; font-size:12px;">(งบซอย: ${nf(r.initialBudget)})</span>
-                                </div>
+                                <div class="p1-section">
+                                    <div class="p1-grid">
+                                        <div><span class="label">1. P1 ประเมินจากเส้นทาง</span><span class="val" style="padding:4px 0;">${nf(p1Dist)}</span></div>
+                                        <div><span class="label">2. P1 ประเมินเอง</span><input class="inline-input" style="border-bottom:1px solid #eee;" value="${nf(p1Self)}" oninput="formatInput(this)" onchange="updateP1(${pi}, ${ri}, 'p1SelfVat', this.value)"></div>
+                                        <div><span class="label">3. P1 ช่างคุมงาน</span><input class="inline-input" style="border-bottom:1px solid #eee;" value="${nf(p1Sup)}" oninput="formatInput(this)" onchange="updateP1(${pi}, ${ri}, 'p1SupVat', this.value)"></div>
+                                        <div><span class="label" style="color:var(--permit)">4. P1 วิศวกร (หลัก)</span><input class="inline-input" style="border-bottom:1px solid #eee;" value="${nf(p1Eng)}" oninput="formatInput(this)" onchange="updateP1(${pi}, ${ri}, 'p1EngVat', this.value)"></div>
+                                    </div>
+                                    
+                                    <div class="compare-row">
+                                        <span style="font-weight:bold;">⚖️ เปรียบเทียบ:</span>
+                                        <select style="padding:4px; font-family:'Sarabun'; border-radius:4px; border:1px solid #ddd;" onchange="updateCompare(${pi}, ${ri}, 'compareA', this.value)">
+                                            <option value="p1Dist" ${(r.compareA||'p1Dist')==='p1Dist'?'selected':''}>1. P1 ประเมินจากเส้นทาง</option>
+                                            <option value="p1Self" ${(r.compareA||'p1Dist')==='p1Self'?'selected':''}>2. P1 ประเมินเอง</option>
+                                            <option value="p1Sup" ${(r.compareA||'p1Dist')==='p1Sup'?'selected':''}>3. P1 ช่างคุมงาน</option>
+                                            <option value="p1Eng" ${(r.compareA||'p1Dist')==='p1Eng'?'selected':''}>4. P1 วิศวกร</option>
+                                        </select>
+                                        <span style="font-weight:bold;">กับ</span>
+                                        <select style="padding:4px; font-family:'Sarabun'; border-radius:4px; border:1px solid #ddd;" onchange="updateCompare(${pi}, ${ri}, 'compareB', this.value)">
+                                            <option value="p1Dist" ${(r.compareB||'p1Eng')==='p1Dist'?'selected':''}>1. P1 ประเมินจากเส้นทาง</option>
+                                            <option value="p1Self" ${(r.compareB||'p1Eng')==='p1Self'?'selected':''}>2. P1 ประเมินเอง</option>
+                                            <option value="p1Sup" ${(r.compareB||'p1Eng')==='p1Sup'?'selected':''}>3. P1 ช่างคุมงาน</option>
+                                            <option value="p1Eng" ${(r.compareB||'p1Eng')==='p1Eng'?'selected':''}>4. P1 วิศวกร</option>
+                                        </select>
+                                        <span style="margin-left:auto; font-size:14px; font-weight:bold; color:${diffColor};">
+                                            ผลต่าง: ${diffBaht > 0 ? '+' : ''}${nf(diffBaht)} บาท (${diffBaht > 0 ? '+' : ''}${diffPercent.toFixed(2)}%)
+                                        </span>
+                                    </div>
 
-                                <div class="grid-p1-compare">
-                                    <div><span class="label">P1 ช่างคุมงาน</span><input class="inline-input" style="border-bottom:1px solid #eee;" value="${nf(r.p1SupVat)}" oninput="formatInput(this)" onchange="updateP1(${pi}, ${ri}, 'p1SupVat', this.value)"></div>
-                                    <div><span class="label" style="color:var(--permit)">P1 วิศวกร (หลัก)</span><input class="inline-input" style="border-bottom:1px solid #eee;" value="${nf(r.p1EngVat)}" oninput="formatInput(this)" onchange="updateP1(${pi}, ${ri}, 'p1EngVat', this.value)"></div>
-                                    <div><span class="label">งบประมาณซอย</span><span class="val">${nf(routeBudget)}</span></div>
-                                    <div><span class="label">จ่ายจริง</span><span class="val">${nf(spent)}</span></div>
-                                    <div><span class="label">เหลือจ่ายได้</span><span class="val" style="color:${(routeBudget-spent)<0?'red':'green'}">${nf(routeBudget-spent)}</span></div>
+                                    <div class="budget-grid">
+                                        <div><span class="label">งบประมาณซอย (จาก P1 สูงสุดที่กรอก)</span><span class="val">${nf(routeBudget)}</span></div>
+                                        <div><span class="label">จ่ายจริงสะสม</span><span class="val" style="color:var(--danger)">${nf(spent)}</span></div>
+                                        <div><span class="label">เหลือจ่ายได้</span><span class="val" style="color:${(routeBudget-spent)<0?'red':'green'}">${nf(routeBudget-spent)}</span></div>
+                                    </div>
                                 </div>
                                 
                                 <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr 1.5fr 1.2fr auto; gap:5px; background:#f9f9f9; padding:8px; border-radius:5px; align-items:end; margin-bottom:10px;">
@@ -353,19 +403,21 @@
                             <div style="flex:1;"><span class="label">งวดที่</span><input type="text" id="hoCount-${pi}" placeholder="เช่น งวดที่ 1" onkeyup="if(event.key==='Enter') addHandover(${pi})"></div>
                             <button class="btn-green" onclick="addHandover(${pi})">บันทึกส่งงาน</button>
                         </div>
-                        <div style="font-size:12px; padding:10px; background:#f9f9f9; border-radius:5px; margin-bottom:10px;">
-                            <span class="label">เลือกเส้นทางที่ส่งมอบ:</span>
-                            ${p.routes.length > 0 ? p.routes.map((r, ri) => `<label style="margin-right:15px; cursor:pointer;"><input type="checkbox" class="hoCheck-${pi}" value="${ri}"> ${r.name}</label>`).join('') : '<span style="color:#999;">ยังไม่มีเส้นทางให้เลือก</span>'}
+                        <div style="font-size:13px; padding:10px; background:#f9f9f9; border-radius:5px; margin-bottom:10px; border:1px solid #eee;">
+                            <span class="label" style="margin-bottom:8px;">☑️ เลือกเส้นทางที่ต้องการส่งมอบ:</span>
+                            <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                                ${p.routes.length > 0 ? p.routes.map((r, ri) => `<label style="background:#fff; padding:4px 8px; border-radius:4px; border:1px solid #ccc; cursor:pointer;"><input type="checkbox" class="hoCheck-${pi}" value="${ri}"> ${r.name}</label>`).join('') : '<span style="color:#999;">ยังไม่มีเส้นทางให้เลือก</span>'}
+                            </div>
                         </div>
                         <table class="exp-table">
-                            <thead><tr><th>วันที่</th><th>งวดที่</th><th>เส้นทางที่ส่งมอบ</th><th>P1 รวม</th><th>ลบ</th></tr></thead>
+                            <thead><tr><th>วันที่</th><th>งวดที่</th><th style="width:45%">เส้นทางที่ส่งมอบ</th><th>P1 รวม</th><th>ลบ</th></tr></thead>
                             <tbody>
                                 ${(p.handovers || []).map((h, hi) => `
                                     <tr>
-                                        <td style="width:15%"><input type="date" class="table-input" value="${h.date}" onchange="updateHandover(${pi}, ${hi}, 'date', this.value)"></td>
-                                        <td style="width:20%"><input type="text" class="table-input" value="${h.count}" onchange="updateHandover(${pi}, ${hi}, 'count', this.value)"></td>
-                                        <td style="width:40%"><input type="text" class="table-input" value="${h.routes}" onchange="updateHandover(${pi}, ${hi}, 'routes', this.value)"></td>
-                                        <td style="width:20%"><input type="text" class="table-input" value="${nf(h.totalP1)}" oninput="formatInput(this)" onchange="updateHandover(${pi}, ${hi}, 'totalP1', this.value)" style="font-weight:bold; color:var(--primary)"></td>
+                                        <td style="width:12%"><input type="date" class="table-input" value="${h.date}" onchange="updateHandover(${pi}, ${hi}, 'date', this.value)"></td>
+                                        <td style="width:15%"><input type="text" class="table-input" value="${h.count}" onchange="updateHandover(${pi}, ${hi}, 'count', this.value)"></td>
+                                        <td style="width:45%"><input type="text" class="table-input" value="${h.routes}" onchange="updateHandover(${pi}, ${hi}, 'routes', this.value)" style="width:100%; box-sizing:border-box;"></td>
+                                        <td style="width:23%"><input type="text" class="table-input" value="${nf(h.totalP1)}" oninput="formatInput(this)" onchange="updateHandover(${pi}, ${hi}, 'totalP1', this.value)" style="font-weight:bold; color:var(--primary)"></td>
                                         <td style="width:5%"><button onclick="deleteHandover(${pi}, ${hi})" style="color:red; border:none; background:none; cursor:pointer;">x</button></td>
                                     </tr>
                                 `).join('')}
