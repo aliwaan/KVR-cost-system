@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KVRdevelopment - Master System Analytics Pro</title>
+    <title>KVRdevelopment - Master System Handover Fixed</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #2980b9; --secondary: #27ae60; --danger: #e74c3c; --warning: #f39c12; --bg: #f4f7f6; --dark: #2c3e50; --permit: #8e44ad; }
@@ -18,12 +18,11 @@
         .btn-blue { background: var(--primary); color: white; }
         .btn-green { background: var(--secondary); color: white; }
         .btn-red { background: var(--danger); color: white; }
-        input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: 'Sarabun'; width: 100%; box-sizing: border-box; }
+        input, select, textarea { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: 'Sarabun'; width: 100%; box-sizing: border-box; }
         
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
 
-        /* ปรับ Grid ด้านบนเป็น 6 ช่องเพื่อใส่ ระยะทางรวม */
         .summary-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin: 15px 0; }
         .summary-item { background: #eef2f7; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #d0dae5; }
         .route-card { border-radius: 8px; padding: 15px; margin-top: 15px; border: 1px solid #d1d8e0; background: #fff; position: relative; }
@@ -34,7 +33,7 @@
         .budget-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; background: #f4f7f6; padding: 10px; border-radius: 6px; }
         
         .exp-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-        .exp-table td, .exp-table th { padding: 6px; border-bottom: 1px solid #eee; text-align: left; }
+        .exp-table td, .exp-table th { padding: 6px; border-bottom: 1px solid #eee; text-align: left; vertical-align: top; }
         
         .inline-input { border: 1px solid transparent; background: transparent; font-family: 'Sarabun'; font-weight: bold; color: inherit; width: 100%; text-align: center; }
         .inline-input:hover { border-bottom: 1px dashed var(--primary); }
@@ -99,7 +98,7 @@
     const routeStatuses = ["ยังไม่เริ่มงาน", "กำลังดำเนินการ", "รอใบอนุญาต", "ได้รับใบอนุญาตแล้ว", "วางท่อเสร็จสิ้น", "ส่งมอบงานแล้ว", "ระงับการดำเนินการ"];
     const branchOptions = ["แม้นศรี", "พญาไท", "นนทบุรี", "สมุทรปราการ", "พระโขนง", "ทุ่งมหาเมฆ", "ลาดพร้าว", "ประชาชื่น", "สุขสวัสดิ์", "ตากสิน", "บางกอกน้อย", "ภาษีเจริญ", "บางบัวทอง", "มหาสวัสดิ์", "สุวรรณภูมิ", "มีนบุรี", "แจ้งวัฒนะ", "บางเขน"];
 
-    let projects = JSON.parse(localStorage.getItem('kvr_master_v29')) || [];
+    let projects = JSON.parse(localStorage.getItem('kvr_master_v30')) || [];
 
     // --- Smart Login ---
     window.onload = function() {
@@ -140,7 +139,7 @@
             costPercent: parseFloat(document.getElementById('pCostPercent').value),
             targetCost: (contractVat / 1.07) * (parseFloat(document.getElementById('pCostPercent').value) / 100),
             totalDist: parseFloat(document.getElementById('pTotalDist').value) || 0,
-            p1Base: 'vat', // ค่าเริ่มต้นให้ P1 คำนวณจากยอด VAT
+            p1Base: 'vat',
             routes: idx === -1 ? [] : projects[idx].routes,
             handovers: idx === -1 ? [] : (projects[idx].handovers || [])
         };
@@ -189,7 +188,6 @@
         }
         projects[pi].targetCost = projects[pi].contractNoVat * (projects[pi].costPercent / 100);
         
-        // อัปเดตงบตั้งต้นของทุกซอย หากมีการเปลี่ยนตัวเลขหลัก
         if (projects[pi].type === 'normal' && projects[pi].totalDist > 0) {
             projects[pi].routes.forEach(r => { r.initialBudget = (r.dist / projects[pi].totalDist) * projects[pi].targetCost; });
         }
@@ -268,7 +266,7 @@
         save();
     }
 
-    function save() { localStorage.setItem('kvr_master_v29', JSON.stringify(projects)); render(); }
+    function save() { localStorage.setItem('kvr_master_v30', JSON.stringify(projects)); render(); }
     function deleteProject(pi) { if(confirm("ยืนยันการลบโครงการนี้?")) { projects.splice(pi, 1); save(); } }
     function deleteRoute(pi, ri) { if(confirm("ยืนยันการลบเส้นทางซอยนี้?")) { projects[pi].routes.splice(ri, 1); save(); } }
     function deleteExp(pi, ri, ei) { if(confirm("ยืนยันการลบรายการจ่ายนี้?")) { projects[pi].routes[ri].expenses.splice(ei, 1); save(); } }
@@ -307,7 +305,6 @@
                     </div>
 
                     ${p.routes.map((r, ri) => {
-                        // เลือกว่าจะให้ P1 ประเมิน คำนวณอ้างอิงจากตัวไหน (VAT, No VAT, Target)
                         let baseP1Value = p.contractVat;
                         if(p.p1Base === 'novat') baseP1Value = p.contractNoVat;
                         if(p.p1Base === 'target') baseP1Value = p.targetCost;
@@ -430,15 +427,15 @@
                             </div>
                         </div>
                         <table class="exp-table">
-                            <thead><tr><th>วันที่</th><th>งวดที่</th><th style="width:45%">เส้นทางที่ส่งมอบ</th><th>P1 รวม</th><th>ลบ</th></tr></thead>
+                            <thead><tr><th style="width:12%">วันที่</th><th style="width:12%">งวดที่</th><th style="width:55%">เส้นทางที่ส่งมอบ</th><th style="width:16%">P1 รวม</th><th style="width:5%">ลบ</th></tr></thead>
                             <tbody>
                                 ${(p.handovers || []).map((h, hi) => `
                                     <tr>
-                                        <td style="width:12%"><input type="date" class="table-input" value="${h.date}" onchange="updateHandover(${pi}, ${hi}, 'date', this.value)"></td>
-                                        <td style="width:15%"><input type="text" class="table-input" value="${h.count}" onchange="updateHandover(${pi}, ${hi}, 'count', this.value)"></td>
-                                        <td style="width:45%"><input type="text" class="table-input" value="${h.routes}" onchange="updateHandover(${pi}, ${hi}, 'routes', this.value)" style="width:100%; box-sizing:border-box;"></td>
-                                        <td style="width:23%"><input type="text" class="table-input" value="${nf(h.totalP1)}" oninput="formatInput(this)" onchange="updateHandover(${pi}, ${hi}, 'totalP1', this.value)" style="font-weight:bold; color:var(--primary)"></td>
-                                        <td style="width:5%"><button onclick="deleteHandover(${pi}, ${hi})" style="color:red; border:none; background:none; cursor:pointer;">x</button></td>
+                                        <td style="vertical-align:top;"><input type="date" class="table-input" value="${h.date}" onchange="updateHandover(${pi}, ${hi}, 'date', this.value)"></td>
+                                        <td style="vertical-align:top;"><input type="text" class="table-input" value="${h.count}" onchange="updateHandover(${pi}, ${hi}, 'count', this.value)"></td>
+                                        <td style="vertical-align:top;"><textarea class="table-input" onchange="updateHandover(${pi}, ${hi}, 'routes', this.value)" style="width:100%; box-sizing:border-box; resize:vertical; min-height:40px; font-family:'Sarabun';">${h.routes}</textarea></td>
+                                        <td style="vertical-align:top;"><input type="text" class="table-input" value="${nf(h.totalP1)}" oninput="formatInput(this)" onchange="updateHandover(${pi}, ${hi}, 'totalP1', this.value)" style="font-weight:bold; color:var(--primary)"></td>
+                                        <td style="vertical-align:top;"><button onclick="deleteHandover(${pi}, ${hi})" style="color:red; border:none; background:none; cursor:pointer;">x</button></td>
                                     </tr>
                                 `).join('')}
                             </tbody>
