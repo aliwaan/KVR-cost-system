@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KVRdevelopment - Master System Final Status Fixed</title>
+    <title>KVRdevelopment - Master System (Handover Restored)</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #2980b9; --secondary: #27ae60; --danger: #e74c3c; --warning: #f39c12; --bg: #f4f7f6; --dark: #2c3e50; --permit: #8e44ad; }
@@ -19,14 +19,23 @@
         .btn-green { background: var(--secondary); color: white; }
         .btn-red { background: var(--danger); color: white; }
         input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: 'Sarabun'; width: 100%; box-sizing: border-box; }
+        
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+
         .summary-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 15px 0; }
         .summary-item { background: #eef2f7; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #d0dae5; }
         .route-card { border-radius: 8px; padding: 15px; margin-top: 15px; border: 1px solid #d1d8e0; background: #fff; position: relative; }
         .grid-p1-compare { display: grid; grid-template-columns: 1fr 1fr 1.2fr 1fr 1.2fr; gap: 10px; background: #fdfefe; padding: 12px; border-radius: 8px; margin: 10px 0; border: 1px solid #e0e6ed; }
         .exp-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-        .exp-table td, .exp-table th { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
-        .inline-input { border: 1px solid transparent; background: transparent; font-family: 'Sarabun'; font-weight: bold; color: inherit; }
+        .exp-table td, .exp-table th { padding: 6px; border-bottom: 1px solid #eee; text-align: left; }
+        
+        .inline-input { border: 1px solid transparent; background: transparent; font-family: 'Sarabun'; font-weight: bold; color: inherit; width: 100%; }
+        .inline-input:hover { border-bottom: 1px dashed var(--primary); }
         .inline-input:focus { border: 1px solid var(--primary); background: #fff; outline: none; }
+        .table-input { border: 1px solid transparent; background: transparent; font-family: 'Sarabun'; width: 100%; padding: 4px; box-sizing: border-box; }
+        .table-input:hover { border: 1px solid #ddd; background: #fff; }
+        .table-input:focus { border: 1px solid var(--primary); background: #fff; outline: none; }
     </style>
 </head>
 <body>
@@ -39,7 +48,7 @@
                autocorrect="off" autocapitalize="off" spellcheck="false"
                onkeyup="if(event.key==='Enter') checkPass()" 
                style="margin-bottom: 15px; text-align: center; font-weight: bold; color: var(--primary); font-size: 18px;">
-        <button class="btn-blue" onclick="checkPass()">เข้าใช้งาน</button>
+        <button class="btn-blue" onclick="checkPass()" style="width: 100%; padding: 12px;">เข้าใช้งาน</button>
     </div>
 </div>
 
@@ -53,7 +62,7 @@
         <h3 style="margin-top:0;">➕ สร้างโครงการใหม่</h3>
         <div style="display: grid; grid-template-columns: 0.7fr 1.5fr 1.2fr 1.2fr 1fr 0.8fr 0.8fr auto; gap: 10px; margin-bottom: 15px;">
             <div><span class="label">ประเภท</span><select id="pType"><option value="normal">งานปกติ</option><option value="openend">งาน Open-end</option></select></div>
-            <div><span class="label">ชื่อโครงการ</span><input type="text" id="pName" placeholder="ชื่อโครงการ" onkeyup="if(event.key==='Enter') addProject()"></div>
+            <div><span class="label">ชื่อโครงการ</span><input type="text" id="pName" placeholder="ชื่อโครงการ" onkeyup="if(event.key==='Enter') saveProject()"></div>
             <div><span class="label">สาขา กปน.</span>
                 <select id="pBranch">
                     <option value="">เลือกสาขา...</option>
@@ -65,11 +74,11 @@
                     <option value="มีนบุรี">มีนบุรี</option><option value="แจ้งวัฒนะ">แจ้งวัฒนะ</option><option value="บางเขน">บางเขน</option>
                 </select>
             </div>
-            <div><span class="label">กองงาน</span><input type="text" id="pDept" placeholder="ระบุกองงาน" onkeyup="if(event.key==='Enter') addProject()"></div>
-            <div><span class="label">สัญญา (VAT)</span><input type="text" id="pContractVat" placeholder="0" oninput="formatInput(this)" onkeyup="if(event.key==='Enter') addProject()"></div>
-            <div><span class="label">% เป้าหมาย</span><input type="number" id="pCostPercent" value="70" onkeyup="if(event.key==='Enter') addProject()"></div>
-            <div><span class="label">รวม (เมตร)</span><input type="number" id="pTotalDist" placeholder="0" onkeyup="if(event.key==='Enter') addProject()"></div>
-            <div style="align-self: end;"><button class="btn-blue" onclick="addProject()">สร้าง</button></div>
+            <div><span class="label">กองงาน</span><input type="text" id="pDept" placeholder="ระบุกองงาน" onkeyup="if(event.key==='Enter') saveProject()"></div>
+            <div><span class="label">สัญญา (VAT)</span><input type="text" id="pContractVat" placeholder="0" oninput="formatInput(this)" onkeyup="if(event.key==='Enter') saveProject()"></div>
+            <div><span class="label">% เป้าหมาย</span><input type="number" id="pCostPercent" value="70" onkeyup="if(event.key==='Enter') saveProject()"></div>
+            <div><span class="label">รวม (เมตร)</span><input type="number" id="pTotalDist" placeholder="0" onkeyup="if(event.key==='Enter') saveProject()"></div>
+            <div style="align-self: end;"><button class="btn-blue" onclick="saveProject()">สร้าง</button></div>
         </div>
     </div>
 
@@ -83,26 +92,27 @@
     const routeStatuses = ["ยังไม่เริ่มงาน", "กำลังดำเนินการ", "รอใบอนุญาต", "ได้รับใบอนุญาตแล้ว", "วางท่อเสร็จสิ้น", "ส่งมอบงานแล้ว", "ระงับการดำเนินการ"];
     const branchOptions = ["แม้นศรี", "พญาไท", "นนทบุรี", "สมุทรปราการ", "พระโขนง", "ทุ่งมหาเมฆ", "ลาดพร้าว", "ประชาชื่น", "สุขสวัสดิ์", "ตากสิน", "บางกอกน้อย", "ภาษีเจริญ", "บางบัวทอง", "มหาสวัสดิ์", "สุวรรณภูมิ", "มีนบุรี", "แจ้งวัฒนะ", "บางเขน"];
 
-    let projects = JSON.parse(localStorage.getItem('kvr_master_v21')) || [];
+    let projects = JSON.parse(localStorage.getItem('kvr_master_v25')) || [];
 
-    // --- Smart Login ---
     window.onload = function() {
         const lastLogin = localStorage.getItem('kvr_session');
         if (lastLogin && (new Date().getTime() - lastLogin) / 60000 < 10) showApp();
     };
+
     function checkPass() {
         if(document.getElementById('passInput').value === SECRET_PASS) showApp();
         else alert("รหัสผ่านไม่ถูกต้อง");
     }
+
     function showApp() {
         localStorage.setItem('kvr_session', new Date().getTime());
         document.getElementById('loginOverlay').style.display = 'none';
         document.getElementById('mainContent').style.display = 'block';
         render();
     }
+
     function logout() { localStorage.removeItem('kvr_session'); location.reload(); }
 
-    // --- Helpers ---
     function formatInput(el) {
         let val = el.value.replace(/,/g, '');
         if(!isNaN(val) && val !== "") el.value = Number(val).toLocaleString('en-US');
@@ -110,11 +120,11 @@
     function unformat(str) { return parseFloat(str.toString().replace(/,/g, '')) || 0; }
     function nf(num) { return Number(num).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
-    // --- Logic ---
-    function addProject() {
+    function saveProject() {
         const name = document.getElementById('pName').value;
         const contractVat = unformat(document.getElementById('pContractVat').value);
         if(!name || !contractVat) return;
+        
         const data = { 
             type: document.getElementById('pType').value,
             name, branch: document.getElementById('pBranch').value, dept: document.getElementById('pDept').value,
@@ -122,9 +132,12 @@
             costPercent: parseFloat(document.getElementById('pCostPercent').value),
             targetCost: (contractVat / 1.07) * (parseFloat(document.getElementById('pCostPercent').value) / 100),
             totalDist: parseFloat(document.getElementById('pTotalDist').value) || 0,
-            routes: []
+            routes: [], handovers: [] // เพิ่มฟิลด์ handovers สำหรับเก็บข้อมูลส่งมอบ
         };
-        projects.push(data); save(); resetForm();
+        projects.push(data); save();
+        document.getElementById('pName').value = ''; 
+        document.getElementById('pContractVat').value = '';
+        document.getElementById('pTotalDist').value = '';
     }
 
     function updateProjectDetail(pi, field, val) {
@@ -139,6 +152,10 @@
             projects[pi][field] = val;
         }
         projects[pi].targetCost = projects[pi].contractNoVat * (projects[pi].costPercent / 100);
+        
+        if (projects[pi].type === 'normal' && projects[pi].totalDist > 0) {
+            projects[pi].routes.forEach(r => { r.initialBudget = (r.dist / projects[pi].totalDist) * projects[pi].targetCost; });
+        }
         save();
     }
 
@@ -156,9 +173,7 @@
             val = parseFloat(val) || 0;
             projects[pi].routes[ri].dist = val;
             if(projects[pi].totalDist > 0) projects[pi].routes[ri].initialBudget = (val / projects[pi].totalDist) * projects[pi].targetCost;
-        } else {
-            projects[pi].routes[ri][field] = val;
-        }
+        } else { projects[pi].routes[ri][field] = val; }
         save();
     }
 
@@ -174,12 +189,50 @@
         }
     }
 
-    function updateExp(pi, ri, ei, field, val) { if(field==='amt') val=unformat(val); projects[pi].routes[ri].expenses[ei][field]=val; save(); }
+    function updateExp(pi, ri, ei, field, val) { 
+        if(field === 'amt') val = unformat(val); 
+        projects[pi].routes[ri].expenses[ei][field] = val; 
+        save(); 
+    }
 
-    function save() { localStorage.setItem('kvr_master_v21', JSON.stringify(projects)); render(); }
-    function deleteProject(pi) { if(confirm("ลบโครงการ?")) { projects.splice(pi, 1); save(); } }
-    function deleteExp(pi, ri, ei) { projects[pi].routes[ri].expenses.splice(ei, 1); save(); }
-    function resetForm() { document.getElementById('pName').value = ''; document.getElementById('pContractVat').value = ''; }
+    // --- ฟังก์ชันส่งมอบงาน (Handover) ---
+    function addHandover(pi) {
+        const count = document.getElementById(`hoCount-${pi}`).value;
+        const checkboxes = document.querySelectorAll(`.hoCheck-${pi}:checked`);
+        if(!count || checkboxes.length === 0) return;
+
+        let selectedRoutes = [];
+        let totalP1 = 0;
+
+        checkboxes.forEach(cb => {
+            const ri = parseInt(cb.value);
+            const r = projects[pi].routes[ri];
+            selectedRoutes.push(r.name);
+            let curP1 = r.p1EngVat > 0 ? r.p1EngVat : r.p1SupVat; // ดึง P1 วิศวกรก่อน ถ้าไม่มีใช้ช่าง
+            totalP1 += curP1;
+        });
+
+        if(!projects[pi].handovers) projects[pi].handovers = [];
+        projects[pi].handovers.push({
+            date: new Date().toISOString().split('T')[0],
+            count: count,
+            routes: selectedRoutes.join(', '),
+            totalP1: totalP1
+        });
+        save();
+    }
+
+    function updateHandover(pi, hi, field, val) {
+        if(field === 'totalP1') val = unformat(val);
+        projects[pi].handovers[hi][field] = val;
+        save();
+    }
+
+    function save() { localStorage.setItem('kvr_master_v25', JSON.stringify(projects)); render(); }
+    function deleteProject(pi) { if(confirm("ยืนยันการลบโครงการนี้?")) { projects.splice(pi, 1); save(); } }
+    function deleteRoute(pi, ri) { if(confirm("ยืนยันการลบเส้นทางซอยนี้?")) { projects[pi].routes.splice(ri, 1); save(); } }
+    function deleteExp(pi, ri, ei) { if(confirm("ยืนยันการลบรายการจ่ายนี้?")) { projects[pi].routes[ri].expenses.splice(ei, 1); save(); } }
+    function deleteHandover(pi, hi) { if(confirm("ยืนยันการลบข้อมูลส่งมอบงาน?")) { projects[pi].handovers.splice(hi, 1); save(); } }
 
     function render() {
         const list = document.getElementById('projectList');
@@ -193,19 +246,21 @@
                     <button class="btn-red" style="float:right; scale:0.7" onclick="deleteProject(${pi})">ลบโครงการ</button>
                     
                     <div style="display:flex; gap:10px; align-items:center; margin-bottom:15px;">
-                        <input class="inline-input" style="font-size:20px; width:30%;" value="${p.name}" onchange="updateProjectDetail(${pi}, 'name', this.value)">
-                        <select style="width:150px;" onchange="updateProjectDetail(${pi}, 'branch', this.value)">
+                        <input class="inline-input" style="font-size:20px; width:35%;" value="${p.name}" onchange="updateProjectDetail(${pi}, 'name', this.value)" placeholder="ชื่อโครงการ">
+                        <select style="width:150px; font-family:'Sarabun'; border:none; background:transparent; font-size:16px; color:var(--primary); font-weight:bold;" onchange="updateProjectDetail(${pi}, 'branch', this.value)">
                             ${branchOptions.map(b => `<option value="${b}" ${p.branch===b?'selected':''}>สาขา${b}</option>`).join('')}
                         </select>
-                        <input class="inline-input" style="width:20%; color:var(--permit);" value="${p.dept}" onchange="updateProjectDetail(${pi}, 'dept', this.value)" placeholder="กองงาน">
+                        <input class="inline-input" style="width:25%; color:var(--permit); font-size:16px;" value="${p.dept}" onchange="updateProjectDetail(${pi}, 'dept', this.value)" placeholder="กองงาน">
                     </div>
 
                     <div class="summary-grid">
-                        <div class="summary-item"><span class="label">รวม VAT</span><input class="inline-input" style="text-align:center;" value="${nf(p.contractVat)}" oninput="formatInput(this)" onchange="updateProjectDetail(${pi}, 'contractVat', this.value)"></div>
+                        <div class="summary-item"><span class="label">รวม VAT (แก้ได้)</span>
+                            <input class="inline-input" style="text-align:center; font-size:14px;" value="${nf(p.contractVat)}" oninput="formatInput(this)" onchange="updateProjectDetail(${pi}, 'contractVat', this.value)">
+                        </div>
                         <div class="summary-item"><span class="label">No VAT</span><span class="val">${nf(p.contractNoVat)}</span></div>
-                        <div class="summary-item"><span class="label">งบเป้าหมาย (%: <input type="number" value="${p.costPercent}" style="width:40px; border:none; background:none; text-align:center; font-weight:bold;" onchange="updateProjectDetail(${pi}, 'costPercent', this.value)">)</span><span class="val">${nf(p.targetCost)}</span></div>
+                        <div class="summary-item"><span class="label">งบเป้าหมาย ( <input type="number" value="${p.costPercent}" style="width:40px; border:none; background:none; text-align:center; font-weight:bold; font-family:'Sarabun';" onchange="updateProjectDetail(${pi}, 'costPercent', this.value)"> %)</span><span class="val">${nf(p.targetCost)}</span></div>
                         <div class="summary-item"><span class="label">จ่ายสะสม</span><span class="val" style="color:var(--danger)">${nf(totalSpent)}</span></div>
-                        <div class="summary-item"><span class="label">คงเหลือ</span><span class="val">${nf(p.targetCost - totalSpent)}</span></div>
+                        <div class="summary-item"><span class="label">คงเหลือรวม</span><span class="val">${nf(p.targetCost - totalSpent)}</span></div>
                     </div>
 
                     ${p.routes.map((r, ri) => {
@@ -216,20 +271,22 @@
                         return `
                             <div class="route-card">
                                 <div style="display:grid; grid-template-columns: 2fr 1fr 1.5fr auto; gap:10px; align-items:end; margin-bottom:10px;">
-                                    <div><span class="label">ชื่อเส้นทาง</span><input class="inline-input" value="${r.name}" onchange="updateRouteInfo(${pi}, ${ri}, 'name', this.value)"></div>
+                                    <div><span class="label">ชื่อเส้นทาง (พิมพ์เพื่อแก้)</span><input class="inline-input" value="${r.name}" onchange="updateRouteInfo(${pi}, ${ri}, 'name', this.value)"></div>
                                     <div><span class="label">ระยะทาง (ม.)</span><input class="inline-input" value="${r.dist}" onchange="updateRouteInfo(${pi}, ${ri}, 'dist', this.value)"></div>
-                                    <div><span class="label">สถานะงาน (คลิกเปลี่ยนได้)</span><select onchange="updateRouteInfo(${pi}, ${ri}, 'status', this.value)">
-                                        ${routeStatuses.map(s => `<option value="${s}" ${r.status===s?'selected':''}>${s}</option>`).join('')}
-                                    </select></div>
-                                    <button class="btn-red" style="scale:0.8" onclick="if(confirm('ลบซอย?')) {projects[${pi}].routes.splice(${ri},1); save();}">ลบซอย</button>
+                                    <div><span class="label">สถานะงาน</span>
+                                        <select style="border:1px solid #ddd; padding:4px; font-family:'Sarabun'; border-radius:4px;" onchange="updateRouteInfo(${pi}, ${ri}, 'status', this.value)">
+                                            ${routeStatuses.map(s => `<option value="${s}" ${r.status===s?'selected':''}>${s}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                    <button class="btn-red" style="padding:4px 8px; font-size:11px;" onclick="deleteRoute(${pi}, ${ri})">ลบซอย</button>
                                 </div>
 
                                 <div class="grid-p1-compare">
-                                    <div><span class="label">P1 ช่าง</span><input class="inline-input" value="${nf(r.p1SupVat)}" oninput="formatInput(this)" onchange="updateP1(${pi}, ${ri}, 'p1SupVat', this.value)"></div>
-                                    <div><span class="label" style="color:var(--permit)">P1 วิศวกร</span><input class="inline-input" value="${nf(r.p1EngVat)}" oninput="formatInput(this)" onchange="updateP1(${pi}, ${ri}, 'p1EngVat', this.value)"></div>
-                                    <div><span class="label">งบประมาณ</span><span class="val">${nf(routeBudget)}</span></div>
+                                    <div><span class="label">P1 ช่างคุมงาน</span><input class="inline-input" style="border-bottom:1px solid #eee;" value="${nf(r.p1SupVat)}" oninput="formatInput(this)" onchange="updateP1(${pi}, ${ri}, 'p1SupVat', this.value)"></div>
+                                    <div><span class="label" style="color:var(--permit)">P1 วิศวกร (หลัก)</span><input class="inline-input" style="border-bottom:1px solid #eee;" value="${nf(r.p1EngVat)}" oninput="formatInput(this)" onchange="updateP1(${pi}, ${ri}, 'p1EngVat', this.value)"></div>
+                                    <div><span class="label">งบประมาณซอย</span><span class="val">${nf(routeBudget)}</span></div>
                                     <div><span class="label">จ่ายจริง</span><span class="val">${nf(spent)}</span></div>
-                                    <div><span class="label">คงเหลือซอย</span><span class="val" style="color:${(routeBudget-spent)<0?'red':'green'}">${nf(routeBudget-spent)}</span></div>
+                                    <div><span class="label">เหลือจ่ายได้</span><span class="val" style="color:${(routeBudget-spent)<0?'red':'green'}">${nf(routeBudget-spent)}</span></div>
                                 </div>
                                 
                                 <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr 1.5fr 1.2fr auto; gap:5px; background:#f9f9f9; padding:8px; border-radius:5px; align-items:end; margin-bottom:10px;">
@@ -243,14 +300,15 @@
 
                                 <table class="exp-table">
                                     <tbody>${r.expenses.map((e, ei) => `
-                                        <tr class="edit-row">
-                                            <td><input type="date" value="${e.date}" onchange="updateExp(${pi}, ${ri}, ${ei}, 'date', this.value)"></td>
-                                            <td><select onchange="updateExp(${pi}, ${ri}, ${ei}, 'cat', this.value)">${categories.map(c => `<option value="${c}" ${e.cat===c?'selected':''}>${c}</option>`).join('')}</select></td>
-                                            <td><input type="text" value="${e.payee}" onchange="updateExp(${pi}, ${ri}, ${ei}, 'payee', this.value)"></td>
-                                            <td><input type="text" value="${nf(e.amt)}" oninput="formatInput(this)" onchange="updateExp(${pi}, ${ri}, ${ei}, 'amt', this.value)" style="font-weight:bold; color:var(--primary)"></td>
-                                            <td><select onchange="updateExp(${pi}, ${ri}, ${ei}, 'status', this.value)">${statuses.map(s => `<option value="${s}" ${e.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
-                                            <td><button onclick="deleteExp(${pi}, ${ri}, ${ei})" style="color:red; border:none; background:none;">x</button></td>
-                                        </tr>`).join('')}</tbody>
+                                        <tr>
+                                            <td style="width:15%"><input type="date" class="table-input" value="${e.date}" onchange="updateExp(${pi}, ${ri}, ${ei}, 'date', this.value)"></td>
+                                            <td style="width:20%"><select class="table-input" onchange="updateExp(${pi}, ${ri}, ${ei}, 'cat', this.value)">${categories.map(c => `<option value="${c}" ${e.cat===c?'selected':''}>${c}</option>`).join('')}</select></td>
+                                            <td style="width:25%"><input type="text" class="table-input" value="${e.payee}" onchange="updateExp(${pi}, ${ri}, ${ei}, 'payee', this.value)"></td>
+                                            <td style="width:20%"><input type="text" class="table-input" value="${nf(e.amt)}" oninput="formatInput(this)" onchange="updateExp(${pi}, ${ri}, ${ei}, 'amt', this.value)" style="font-weight:bold; color:var(--primary)"></td>
+                                            <td style="width:15%"><select class="table-input" onchange="updateExp(${pi}, ${ri}, ${ei}, 'status', this.value)">${statuses.map(s => `<option value="${s}" ${e.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
+                                            <td style="width:5%"><button onclick="deleteExp(${pi}, ${ri}, ${ei})" style="color:red; border:none; background:none; cursor:pointer;">x</button></td>
+                                        </tr>`).join('')}
+                                    </tbody>
                                 </table>
                             </div>
                         `;
@@ -261,6 +319,33 @@
                         <div><span class="label">เมตร</span><input type="number" id="newRDist-${pi}" onkeyup="if(event.key==='Enter') addRouteInline(${pi})"></div>
                         <button class="btn-green" onclick="addRouteInline(${pi})">เพิ่มเส้นทาง</button>
                     </div>
+
+                    <div class="card" style="margin-top: 20px; background: #fdfefe; border: 1px solid #e0e6ed;">
+                        <h3>🚚 ส่งมอบงาน</h3>
+                        <div style="display:flex; gap:10px; align-items:end; margin-bottom:10px;">
+                            <div style="flex:1;"><span class="label">งวดที่</span><input type="text" id="hoCount-${pi}" placeholder="เช่น งวดที่ 1" onkeyup="if(event.key==='Enter') addHandover(${pi})"></div>
+                            <button class="btn-green" onclick="addHandover(${pi})">บันทึกส่งงาน</button>
+                        </div>
+                        <div style="font-size:12px; padding:10px; background:#f9f9f9; border-radius:5px; margin-bottom:10px;">
+                            <span class="label">เลือกเส้นทางที่ส่งมอบ:</span>
+                            ${p.routes.length > 0 ? p.routes.map((r, ri) => `<label style="margin-right:15px; cursor:pointer;"><input type="checkbox" class="hoCheck-${pi}" value="${ri}"> ${r.name}</label>`).join('') : '<span style="color:#999;">ยังไม่มีเส้นทางให้เลือก</span>'}
+                        </div>
+                        <table class="exp-table">
+                            <thead><tr><th>วันที่</th><th>งวดที่</th><th>เส้นทางที่ส่งมอบ</th><th>P1 รวม</th><th>ลบ</th></tr></thead>
+                            <tbody>
+                                ${(p.handovers || []).map((h, hi) => `
+                                    <tr>
+                                        <td style="width:15%"><input type="date" class="table-input" value="${h.date}" onchange="updateHandover(${pi}, ${hi}, 'date', this.value)"></td>
+                                        <td style="width:20%"><input type="text" class="table-input" value="${h.count}" onchange="updateHandover(${pi}, ${hi}, 'count', this.value)"></td>
+                                        <td style="width:40%"><input type="text" class="table-input" value="${h.routes}" onchange="updateHandover(${pi}, ${hi}, 'routes', this.value)"></td>
+                                        <td style="width:20%"><input type="text" class="table-input" value="${nf(h.totalP1)}" oninput="formatInput(this)" onchange="updateHandover(${pi}, ${hi}, 'totalP1', this.value)" style="font-weight:bold; color:var(--primary)"></td>
+                                        <td style="width:5%"><button onclick="deleteHandover(${pi}, ${hi})" style="color:red; border:none; background:none; cursor:pointer;">x</button></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
                 </div>
             `;
         });
