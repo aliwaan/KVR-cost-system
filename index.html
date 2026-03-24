@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KVRdevelopment - Master System Analytics & Remarks</title>
+    <title>KVRdevelopment - Master System with Undo/Redo</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #2980b9; --secondary: #27ae60; --danger: #e74c3c; --warning: #f39c12; --bg: #f4f7f6; --dark: #2c3e50; --permit: #8e44ad; }
@@ -18,8 +18,13 @@
         .btn-blue { background: var(--primary); color: white; }
         .btn-green { background: var(--secondary); color: white; }
         .btn-red { background: var(--danger); color: white; }
-        input, select, textarea { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: 'Sarabun'; width: 100%; box-sizing: border-box; }
         
+        /* สไตล์ปุ่ม Undo / Redo */
+        .btn-history { background: #ecf0f1; color: #2c3e50; border: 1px solid #bdc3c7; margin-right: 5px; }
+        .btn-history:hover:not(:disabled) { background: #d5dbdb; }
+        .btn-history:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        input, select, textarea { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: 'Sarabun'; width: 100%; box-sizing: border-box; }
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
 
@@ -61,7 +66,13 @@
 
 <div class="container" id="mainContent">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
-        <h2 style="color: var(--dark); margin:0;">🏗️ KVRdevelopment System</h2>
+        <div style="display:flex; align-items:center; gap: 20px;">
+            <h2 style="color: var(--dark); margin:0;">🏗️ KVRdevelopment System</h2>
+            <div>
+                <button id="btnUndo" class="btn-history" onclick="undo()" disabled>↩️ ย้อนกลับ (Undo)</button>
+                <button id="btnRedo" class="btn-history" onclick="redo()" disabled>↪️ ทำซ้ำ (Redo)</button>
+            </div>
+        </div>
         <button onclick="logout()" style="background:#7f8c8d; color:white;">ออกจากระบบ</button>
     </div>
 
@@ -100,7 +111,48 @@
     const routeStatuses = ["ยังไม่เริ่มงาน", "กำลังดำเนินการ", "รอใบอนุญาต", "ได้รับใบอนุญาตแล้ว", "วางท่อเสร็จสิ้น", "ส่งมอบงานแล้ว", "ระงับการดำเนินการ"];
     const branchOptions = ["แม้นศรี", "พญาไท", "นนทบุรี", "สมุทรปราการ", "พระโขนง", "ทุ่งมหาเมฆ", "ลาดพร้าว", "ประชาชื่น", "สุขสวัสดิ์", "ตากสิน", "บางกอกน้อย", "ภาษีเจริญ", "บางบัวทอง", "มหาสวัสดิ์", "สุวรรณภูมิ", "มีนบุรี", "แจ้งวัฒนะ", "บางเขน"];
 
-    let projects = JSON.parse(localStorage.getItem('kvr_master_v31')) || [];
+    let projects = JSON.parse(localStorage.getItem('kvr_master_v32')) || [];
+    
+    // --- ระบบจำประวัติ (Undo/Redo) ---
+    let historyStack = [JSON.stringify(projects)];
+    let historyIndex = 0;
+
+    function save(recordHistory = true) {
+        localStorage.setItem('kvr_master_v32', JSON.stringify(projects));
+        
+        if (recordHistory) {
+            // ถ้ามีการแก้ไขใหม่หลังจากที่เคย Undo ไปแล้ว ให้ตัดอนาคตทิ้ง
+            if (historyIndex < historyStack.length - 1) {
+                historyStack = historyStack.slice(0, historyIndex + 1);
+            }
+            historyStack.push(JSON.stringify(projects));
+            historyIndex++;
+        }
+        render();
+    }
+
+    function undo() {
+        if (historyIndex > 0) {
+            historyIndex--;
+            projects = JSON.parse(historyStack[historyIndex]);
+            save(false); // บันทึกลง Storage เฉยๆ ไม่ต้องสร้างประวัติซ้อน
+        }
+    }
+
+    function redo() {
+        if (historyIndex < historyStack.length - 1) {
+            historyIndex++;
+            projects = JSON.parse(historyStack[historyIndex]);
+            save(false);
+        }
+    }
+
+    function updateUndoRedoUI() {
+        const btnUndo = document.getElementById('btnUndo');
+        const btnRedo = document.getElementById('btnRedo');
+        if(btnUndo) btnUndo.disabled = (historyIndex <= 0);
+        if(btnRedo) btnRedo.disabled = (historyIndex >= historyStack.length - 1);
+    }
 
     // --- Smart Login ---
     window.onload = function() {
@@ -226,16 +278,11 @@
         const date = document.getElementById(`expDate-${pi}-${ri}`).value || new Date().toISOString().split('T')[0];
         const payee = document.getElementById(`payee-${pi}-${ri}`).value;
         const amt = unformat(document.getElementById(`amt-${pi}-${ri}`).value);
-        const remark = document.getElementById(`rem-${pi}-${ri}`).value; // รับค่าจากช่องหมายเหตุใหม่
+        const remark = document.getElementById(`rem-${pi}-${ri}`).value; 
         
         if(amt > 0 && payee) {
             projects[pi].routes[ri].expenses.push({ 
-                date, 
-                cat: document.getElementById(`cat-${pi}-${ri}`).value, 
-                payee, 
-                amt, 
-                status: document.getElementById(`status-${pi}-${ri}`).value,
-                remark: remark // บันทึกหมายเหตุลงฐานข้อมูล
+                date, cat: document.getElementById(`cat-${pi}-${ri}`).value, payee, amt, status: document.getElementById(`status-${pi}-${ri}`).value, remark: remark 
             });
             save();
         }
@@ -264,9 +311,7 @@
         });
 
         if(!projects[pi].handovers) projects[pi].handovers = [];
-        projects[pi].handovers.push({
-            date: new Date().toISOString().split('T')[0], count: count, routes: selectedRoutes.join(', '), totalP1: totalP1
-        });
+        projects[pi].handovers.push({ date: new Date().toISOString().split('T')[0], count: count, routes: selectedRoutes.join(', '), totalP1: totalP1 });
         save();
     }
 
@@ -276,7 +321,6 @@
         save();
     }
 
-    function save() { localStorage.setItem('kvr_master_v31', JSON.stringify(projects)); render(); }
     function deleteProject(pi) { if(confirm("ยืนยันการลบโครงการนี้?")) { projects.splice(pi, 1); save(); } }
     function deleteRoute(pi, ri) { if(confirm("ยืนยันการลบเส้นทางซอยนี้?")) { projects[pi].routes.splice(ri, 1); save(); } }
     function deleteExp(pi, ri, ei) { if(confirm("ยืนยันการลบรายการจ่ายนี้?")) { projects[pi].routes[ri].expenses.splice(ei, 1); save(); } }
@@ -328,7 +372,6 @@
                         let routeBudget = curP1 > 0 ? (curP1 / 1.07) * (p.costPercent / 100) : r.initialBudget;
                         const spent = r.expenses.reduce((s, e) => s + e.amt, 0);
 
-                        // คำนวณยอดรวมรายหมวดของซอยนี้
                         let catTotals = {};
                         categories.forEach(c => catTotals[c] = 0);
                         r.expenses.forEach(e => { if(catTotals[e.cat] !== undefined) catTotals[e.cat] += e.amt; });
@@ -470,6 +513,7 @@
                 </div>
             `;
         });
+        updateUndoRedoUI(); // สั่งให้อัปเดตสถานะปุ่ม Undo/Redo หลังจากเรนเดอร์เสร็จ
     }
 </script>
 </body>
