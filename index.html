@@ -13,6 +13,7 @@
         /* หน้า Login */
         #loginOverlay { position: fixed; inset: 0; background: var(--dark); display: flex; justify-content: center; align-items: center; z-index: 1000; }
         .login-box { background: white; padding: 40px; border-radius: 20px; text-align: center; box-shadow: 0 15px 35px rgba(0,0,0,0.4); width: 350px; }
+        .login-box h1 { color: var(--primary); margin-bottom: 5px; font-size: 24px; }
         
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .project-section { border-left: 10px solid var(--primary); }
@@ -35,12 +36,10 @@
         
         .route-card { border-radius: 8px; padding: 15px; margin-top: 15px; border: 1px solid #d1d8e0; background: #fff; position: relative; }
         
-        /* สไตล์ตารางค่าใช้จ่าย */
         .exp-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
         .exp-table th { background: #f8f9fa; color: #555; padding: 10px; text-align: left; border-bottom: 2px solid #eee; }
         .exp-table td { padding: 10px; border-bottom: 1px solid #eee; }
         
-        /* สีของสถานะ */
         .status-prepare { color: var(--warning); font-weight: bold; }
         .status-paid { color: var(--secondary); font-weight: bold; }
         .status-flow { color: var(--flow); font-weight: bold; }
@@ -52,7 +51,7 @@
     <div class="login-box">
         <h1>Hello KVRdevelopment</h1>
         <p>ระบุรหัสผ่านเพื่อเข้าใช้งาน</p>
-        <input type="text" id="passInput" placeholder="พิมพ์ kvradmin ตรงนี้" style="margin-bottom: 15px; text-align: center; font-weight: bold; color: var(--primary);">
+        <input type="text" id="passInput" placeholder="พิมพ์ kvradmin" style="margin-bottom: 15px; text-align: center; font-weight: bold; color: var(--primary); font-size: 18px;">
         <button class="btn-blue" onclick="checkPass()" style="width: 100%; padding: 12px;">เข้าใช้งาน</button>
         <p id="errorMsg" style="color: var(--danger); font-size: 12px; margin-top: 10px; display: none;">รหัสผ่านไม่ถูกต้องค่ะคุณว่าน</p>
     </div>
@@ -88,10 +87,11 @@
     const categories = ["ค่าแรง", "ค่าคอนกรีต", "ค่า asbuilt", "ค่าช่างคุมงาน", "ค่า ผจ.", "ค่า Food support", "ค่าตรวจรับงาน"];
     const statuses = ["เตรียมจ่าย", "จ่ายแล้ว", "บันทึกลง flowaccount แล้ว"];
     
-    let projects = JSON.parse(localStorage.getItem('kvrFlowSystem')) || [];
+    let projects = JSON.parse(localStorage.getItem('kvrFinalSystem_v2')) || [];
 
     function checkPass() {
-        if(document.getElementById('passInput').value === SECRET_PASS) {
+        const input = document.getElementById('passInput').value;
+        if(input === SECRET_PASS) {
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('mainContent').style.display = 'block';
             render();
@@ -106,7 +106,7 @@
         const costPercent = parseFloat(document.getElementById('pCostPercent').value);
         const totalDist = parseFloat(document.getElementById('pTotalDist').value) || 0;
 
-        if(!name || !contractVat) return alert("กรุณากรอกข้อมูลสำคัญให้ครบค่ะ");
+        if(!name || !contractVat) return alert("กรุณากรอกข้อมูลให้ครบถ้วนค่ะ");
 
         const data = { 
             type, name, contractVat, contractNoVat: contractVat / 1.07, 
@@ -177,7 +177,7 @@
     }
 
     function deleteProject(idx) { if(confirm("ลบโครงการ?")) { projects.splice(idx, 1); save(); } }
-    function save() { localStorage.setItem('kvrFlowSystem', JSON.stringify(projects)); render(); }
+    function save() { localStorage.setItem('kvrFinalSystem_v2', JSON.stringify(projects)); render(); }
 
     function render() {
         const list = document.getElementById('projectList');
@@ -257,6 +257,8 @@
             `;
         });
     }
+
+    document.getElementById("passInput").addEventListener("keyup", (e) => { if(e.key === "Enter") checkPass(); });
 </script>
 </body>
 </html>
