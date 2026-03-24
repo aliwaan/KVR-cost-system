@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KVRdevelopment - Master System Handover Fixed</title>
+    <title>KVRdevelopment - Master System Analytics & Remarks</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #2980b9; --secondary: #27ae60; --danger: #e74c3c; --warning: #f39c12; --bg: #f4f7f6; --dark: #2c3e50; --permit: #8e44ad; }
@@ -41,6 +41,8 @@
         .table-input { border: 1px solid transparent; background: transparent; font-family: 'Sarabun'; width: 100%; padding: 4px; box-sizing: border-box; }
         .table-input:hover { border: 1px solid #ddd; background: #fff; }
         .table-input:focus { border: 1px solid var(--primary); background: #fff; outline: none; }
+        
+        .cat-badge { background: #fff; padding: 4px 10px; border-radius: 15px; border: 1px solid #bde0ec; color: var(--primary); font-size: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: inline-block; }
     </style>
 </head>
 <body>
@@ -98,7 +100,7 @@
     const routeStatuses = ["ยังไม่เริ่มงาน", "กำลังดำเนินการ", "รอใบอนุญาต", "ได้รับใบอนุญาตแล้ว", "วางท่อเสร็จสิ้น", "ส่งมอบงานแล้ว", "ระงับการดำเนินการ"];
     const branchOptions = ["แม้นศรี", "พญาไท", "นนทบุรี", "สมุทรปราการ", "พระโขนง", "ทุ่งมหาเมฆ", "ลาดพร้าว", "ประชาชื่น", "สุขสวัสดิ์", "ตากสิน", "บางกอกน้อย", "ภาษีเจริญ", "บางบัวทอง", "มหาสวัสดิ์", "สุวรรณภูมิ", "มีนบุรี", "แจ้งวัฒนะ", "บางเขน"];
 
-    let projects = JSON.parse(localStorage.getItem('kvr_master_v30')) || [];
+    let projects = JSON.parse(localStorage.getItem('kvr_master_v31')) || [];
 
     // --- Smart Login ---
     window.onload = function() {
@@ -224,8 +226,17 @@
         const date = document.getElementById(`expDate-${pi}-${ri}`).value || new Date().toISOString().split('T')[0];
         const payee = document.getElementById(`payee-${pi}-${ri}`).value;
         const amt = unformat(document.getElementById(`amt-${pi}-${ri}`).value);
+        const remark = document.getElementById(`rem-${pi}-${ri}`).value; // รับค่าจากช่องหมายเหตุใหม่
+        
         if(amt > 0 && payee) {
-            projects[pi].routes[ri].expenses.push({ date, cat: document.getElementById(`cat-${pi}-${ri}`).value, payee, amt, status: document.getElementById(`status-${pi}-${ri}`).value });
+            projects[pi].routes[ri].expenses.push({ 
+                date, 
+                cat: document.getElementById(`cat-${pi}-${ri}`).value, 
+                payee, 
+                amt, 
+                status: document.getElementById(`status-${pi}-${ri}`).value,
+                remark: remark // บันทึกหมายเหตุลงฐานข้อมูล
+            });
             save();
         }
     }
@@ -236,7 +247,6 @@
         save(); 
     }
 
-    // --- Handover ---
     function addHandover(pi) {
         const count = document.getElementById(`hoCount-${pi}`).value;
         const checkboxes = document.querySelectorAll(`.hoCheck-${pi}:checked`);
@@ -266,7 +276,7 @@
         save();
     }
 
-    function save() { localStorage.setItem('kvr_master_v30', JSON.stringify(projects)); render(); }
+    function save() { localStorage.setItem('kvr_master_v31', JSON.stringify(projects)); render(); }
     function deleteProject(pi) { if(confirm("ยืนยันการลบโครงการนี้?")) { projects.splice(pi, 1); save(); } }
     function deleteRoute(pi, ri) { if(confirm("ยืนยันการลบเส้นทางซอยนี้?")) { projects[pi].routes.splice(ri, 1); save(); } }
     function deleteExp(pi, ri, ei) { if(confirm("ยืนยันการลบรายการจ่ายนี้?")) { projects[pi].routes[ri].expenses.splice(ei, 1); save(); } }
@@ -317,6 +327,13 @@
                         let curP1 = p1Eng > 0 ? p1Eng : (p1Sup > 0 ? p1Sup : (p1Self > 0 ? p1Self : 0));
                         let routeBudget = curP1 > 0 ? (curP1 / 1.07) * (p.costPercent / 100) : r.initialBudget;
                         const spent = r.expenses.reduce((s, e) => s + e.amt, 0);
+
+                        // คำนวณยอดรวมรายหมวดของซอยนี้
+                        let catTotals = {};
+                        categories.forEach(c => catTotals[c] = 0);
+                        r.expenses.forEach(e => { if(catTotals[e.cat] !== undefined) catTotals[e.cat] += e.amt; });
+                        let summaryHtml = categories.filter(c => catTotals[c] > 0).map(c => `<span class="cat-badge"><b>${c}:</b> ${nf(catTotals[c])}</span>`).join('');
+                        if(!summaryHtml) summaryHtml = `<span style="color:#999; font-size:12px;">ยังไม่มีข้อมูลค่าใช้จ่าย</span>`;
 
                         let p1Dict = { 'p1Dist': p1Dist, 'p1Self': p1Self, 'p1Sup': p1Sup, 'p1Eng': p1Eng };
                         let valA = p1Dict[r.compareA || 'p1Dist'];
@@ -383,24 +400,32 @@
                                     </div>
                                 </div>
                                 
-                                <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr 1.5fr 1.2fr auto; gap:5px; background:#f9f9f9; padding:8px; border-radius:5px; align-items:end; margin-bottom:10px;">
-                                    <div><input type="date" id="expDate-${pi}-${ri}"></div>
-                                    <div><select id="cat-${pi}-${ri}">${categories.map(c => `<option value="${c}">${c}</option>`).join('')}</select></div>
-                                    <div><input type="text" id="payee-${pi}-${ri}" placeholder="ผู้รับเงิน" onkeyup="if(event.key==='Enter') addExpense(${pi}, ${ri})"></div>
-                                    <div><input type="text" id="amt-${pi}-${ri}" oninput="formatInput(this)" placeholder="จำนวน" onkeyup="if(event.key==='Enter') addExpense(${pi}, ${ri})"></div>
-                                    <div><select id="status-${pi}-${ri}">${statuses.map(s => `<option value="${s}">${s}</option>`).join('')}</select></div>
+                                <div style="background:#e8f4f8; padding:10px; border-radius:6px; margin-bottom:10px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+                                    <span style="font-weight:bold; color:var(--dark); font-size:12px; margin-right:5px;">📊 สรุปรายหมวด:</span>
+                                    ${summaryHtml}
+                                </div>
+
+                                <div style="display:grid; grid-template-columns: 0.9fr 1.2fr 1.5fr 1.2fr 1fr 1.5fr auto; gap:5px; background:#f9f9f9; padding:10px; border-radius:5px; align-items:end; margin-bottom:10px;">
+                                    <div><span class="label">วันที่</span><input type="date" id="expDate-${pi}-${ri}"></div>
+                                    <div><span class="label">หมวด</span><select id="cat-${pi}-${ri}">${categories.map(c => `<option value="${c}">${c}</option>`).join('')}</select></div>
+                                    <div><span class="label">ผู้รับเงิน</span><input type="text" id="payee-${pi}-${ri}" placeholder="ผู้รับเงิน" onkeyup="if(event.key==='Enter') addExpense(${pi}, ${ri})"></div>
+                                    <div><span class="label">จำนวน</span><input type="text" id="amt-${pi}-${ri}" oninput="formatInput(this)" placeholder="จำนวน" onkeyup="if(event.key==='Enter') addExpense(${pi}, ${ri})"></div>
+                                    <div><span class="label">สถานะ</span><select id="status-${pi}-${ri}">${statuses.map(s => `<option value="${s}">${s}</option>`).join('')}</select></div>
+                                    <div><span class="label">หมายเหตุ</span><input type="text" id="rem-${pi}-${ri}" placeholder="โน้ตเพิ่มเติม..." onkeyup="if(event.key==='Enter') addExpense(${pi}, ${ri})"></div>
                                     <button class="btn-blue" onclick="addExpense(${pi}, ${ri})">บันทึก</button>
                                 </div>
 
                                 <table class="exp-table">
+                                    <thead><tr><th style="width:10%">วันที่</th><th style="width:14%">หมวด</th><th style="width:20%">ผู้รับเงิน</th><th style="width:14%">จำนวนเงิน</th><th style="width:14%">สถานะ</th><th style="width:23%">หมายเหตุ</th><th style="width:5%">ลบ</th></tr></thead>
                                     <tbody>${r.expenses.map((e, ei) => `
                                         <tr>
-                                            <td style="width:15%"><input type="date" class="table-input" value="${e.date}" onchange="updateExp(${pi}, ${ri}, ${ei}, 'date', this.value)"></td>
-                                            <td style="width:20%"><select class="table-input" onchange="updateExp(${pi}, ${ri}, ${ei}, 'cat', this.value)">${categories.map(c => `<option value="${c}" ${e.cat===c?'selected':''}>${c}</option>`).join('')}</select></td>
-                                            <td style="width:25%"><input type="text" class="table-input" value="${e.payee}" onchange="updateExp(${pi}, ${ri}, ${ei}, 'payee', this.value)"></td>
-                                            <td style="width:20%"><input type="text" class="table-input" value="${nf(e.amt)}" oninput="formatInput(this)" onchange="updateExp(${pi}, ${ri}, ${ei}, 'amt', this.value)" style="font-weight:bold; color:var(--primary)"></td>
-                                            <td style="width:15%"><select class="table-input" onchange="updateExp(${pi}, ${ri}, ${ei}, 'status', this.value)">${statuses.map(s => `<option value="${s}" ${e.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
-                                            <td style="width:5%"><button onclick="deleteExp(${pi}, ${ri}, ${ei})" style="color:red; border:none; background:none; cursor:pointer;">x</button></td>
+                                            <td><input type="date" class="table-input" value="${e.date}" onchange="updateExp(${pi}, ${ri}, ${ei}, 'date', this.value)"></td>
+                                            <td><select class="table-input" onchange="updateExp(${pi}, ${ri}, ${ei}, 'cat', this.value)">${categories.map(c => `<option value="${c}" ${e.cat===c?'selected':''}>${c}</option>`).join('')}</select></td>
+                                            <td><input type="text" class="table-input" value="${e.payee}" onchange="updateExp(${pi}, ${ri}, ${ei}, 'payee', this.value)"></td>
+                                            <td><input type="text" class="table-input" value="${nf(e.amt)}" oninput="formatInput(this)" onchange="updateExp(${pi}, ${ri}, ${ei}, 'amt', this.value)" style="font-weight:bold; color:var(--primary)"></td>
+                                            <td><select class="table-input" onchange="updateExp(${pi}, ${ri}, ${ei}, 'status', this.value)">${statuses.map(s => `<option value="${s}" ${e.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
+                                            <td><input type="text" class="table-input" value="${e.remark || ''}" onchange="updateExp(${pi}, ${ri}, ${ei}, 'remark', this.value)" placeholder="เพิ่มหมายเหตุ..."></td>
+                                            <td><button onclick="deleteExp(${pi}, ${ri}, ${ei})" style="color:red; border:none; background:none; cursor:pointer;">x</button></td>
                                         </tr>`).join('')}
                                     </tbody>
                                 </table>
