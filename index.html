@@ -3,13 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KVRdevelopment - Master System with Undo/Redo</title>
+    <title>KVRdevelopment - Cloud Safe Sync</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #2980b9; --secondary: #27ae60; --danger: #e74c3c; --warning: #f39c12; --bg: #f4f7f6; --dark: #2c3e50; --permit: #8e44ad; }
         body { font-family: 'Sarabun', sans-serif; background-color: var(--bg); margin: 0; padding: 20px; font-size: 13px; }
         .container { max-width: 1550px; margin: auto; display: none; }
+        
+        /* Overlays */
         #loginOverlay { position: fixed; inset: 0; background: var(--dark); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        #loadingOverlay { position: fixed; inset: 0; background: rgba(255,255,255,0.95); display: none; justify-content: center; align-items: center; z-index: 2000; flex-direction: column; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom:15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
         .login-box { background: white; padding: 40px; border-radius: 20px; text-align: center; width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border-top: 5px solid #ddd; }
         .label { font-size: 0.8em; color: #666; display: block; margin-bottom: 3px; font-weight: bold; }
@@ -19,7 +25,7 @@
         .btn-green { background: var(--secondary); color: white; }
         .btn-red { background: var(--danger); color: white; }
         
-        /* สไตล์ปุ่ม Undo / Redo */
+        /* Undo / Redo */
         .btn-history { background: #ecf0f1; color: #2c3e50; border: 1px solid #bdc3c7; margin-right: 5px; }
         .btn-history:hover:not(:disabled) { background: #d5dbdb; }
         .btn-history:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -52,28 +58,34 @@
 </head>
 <body>
 
+<div id="loadingOverlay">
+    <div class="spinner"></div>
+    <h2 style="color:var(--primary); font-family:'Sarabun'; margin-bottom: 5px;">กำลังเชื่อมต่อฐานข้อมูล...</h2>
+    <p style="color:#666; font-size:14px; margin-top:0;">(กำลังซิงค์ข้อมูลกับ Firebase)</p>
+</div>
+
 <div id="loginOverlay">
     <div class="login-box">
         <h1>Hello KVRdevelopment</h1>
         <p>ระบุรหัสผ่านเพื่อเข้าใช้งาน</p>
         <input type="text" id="passInput" placeholder="ใส่ password" 
                autocorrect="off" autocapitalize="off" spellcheck="false"
-               onkeyup="if(event.key==='Enter') checkPass()" 
+               onkeyup="if(event.key==='Enter') window.checkPass()" 
                style="margin-bottom: 15px; text-align: center; font-weight: bold; color: var(--primary); font-size: 18px;">
-        <button class="btn-blue" onclick="checkPass()" style="width: 100%; padding: 12px;">เข้าใช้งาน</button>
+        <button class="btn-blue" onclick="window.checkPass()" style="width: 100%; padding: 12px;">เข้าใช้งาน</button>
     </div>
 </div>
 
 <div class="container" id="mainContent">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
         <div style="display:flex; align-items:center; gap: 20px;">
-            <h2 style="color: var(--dark); margin:0;">🏗️ KVRdevelopment System</h2>
+            <h2 style="color: var(--dark); margin:0;">🏗️ KVRdevelopment System (Cloud)</h2>
             <div>
-                <button id="btnUndo" class="btn-history" onclick="undo()" disabled>↩️ ย้อนกลับ (Undo)</button>
-                <button id="btnRedo" class="btn-history" onclick="redo()" disabled>↪️ ทำซ้ำ (Redo)</button>
+                <button id="btnUndo" class="btn-history" onclick="window.undo()" disabled>↩️ ย้อนกลับ</button>
+                <button id="btnRedo" class="btn-history" onclick="window.redo()" disabled>↪️ ทำซ้ำ</button>
             </div>
         </div>
-        <button onclick="logout()" style="background:#7f8c8d; color:white;">ออกจากระบบ</button>
+        <button onclick="window.logout()" style="background:#7f8c8d; color:white;">ออกจากระบบ</button>
     </div>
 
     <div class="card" style="border-top: 5px solid var(--dark);">
@@ -81,7 +93,7 @@
         <div style="display: grid; grid-template-columns: 0.7fr 1.5fr 1.2fr 1.2fr 1fr 0.8fr 0.8fr auto; gap: 10px; margin-bottom: 15px;">
             <input type="hidden" id="editIdx" value="-1">
             <div><span class="label">ประเภท</span><select id="pType"><option value="normal">งานปกติ</option><option value="openend">งาน Open-end</option></select></div>
-            <div><span class="label">ชื่อโครงการ</span><input type="text" id="pName" placeholder="ชื่อโครงการ" onkeyup="if(event.key==='Enter') saveProject()"></div>
+            <div><span class="label">ชื่อโครงการ</span><input type="text" id="pName" placeholder="ชื่อโครงการ" onkeyup="if(event.key==='Enter') window.saveProject()"></div>
             <div><span class="label">สาขา กปน.</span>
                 <select id="pBranch">
                     <option value="">เลือกสาขา...</option>
@@ -93,53 +105,125 @@
                     <option value="มีนบุรี">มีนบุรี</option><option value="แจ้งวัฒนะ">แจ้งวัฒนะ</option><option value="บางเขน">บางเขน</option>
                 </select>
             </div>
-            <div><span class="label">กองงาน</span><input type="text" id="pDept" placeholder="ระบุกองงาน" onkeyup="if(event.key==='Enter') saveProject()"></div>
-            <div><span class="label">สัญญา (VAT)</span><input type="text" id="pContractVat" placeholder="0" oninput="formatInput(this)" onkeyup="if(event.key==='Enter') saveProject()"></div>
-            <div><span class="label">% เป้าหมาย</span><input type="number" id="pCostPercent" value="70" onkeyup="if(event.key==='Enter') saveProject()"></div>
-            <div><span class="label">รวม (เมตร)</span><input type="number" id="pTotalDist" placeholder="0" onkeyup="if(event.key==='Enter') saveProject()"></div>
-            <div style="align-self: end;"><button class="btn-blue" id="submitBtn" onclick="saveProject()">สร้างโครงการ</button></div>
+            <div><span class="label">กองงาน</span><input type="text" id="pDept" placeholder="ระบุกองงาน" onkeyup="if(event.key==='Enter') window.saveProject()"></div>
+            <div><span class="label">สัญญา (VAT)</span><input type="text" id="pContractVat" placeholder="0" oninput="window.formatInput(this)" onkeyup="if(event.key==='Enter') window.saveProject()"></div>
+            <div><span class="label">% เป้าหมาย</span><input type="number" id="pCostPercent" value="70" onkeyup="if(event.key==='Enter') window.saveProject()"></div>
+            <div><span class="label">รวม (เมตร)</span><input type="number" id="pTotalDist" placeholder="0" onkeyup="if(event.key==='Enter') window.saveProject()"></div>
+            <div style="align-self: end;"><button class="btn-blue" id="submitBtn" onclick="window.saveProject()">สร้างโครงการ</button></div>
         </div>
     </div>
 
     <div id="projectList"></div>
 </div>
 
-<script>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBDTOK5CGmNdwdTnj1KgWjMw8ErOr4TWh4",
+      authDomain: "kvr-development.firebaseapp.com",
+      projectId: "kvr-development",
+      storageBucket: "kvr-development.firebasestorage.app",
+      messagingSenderId: "194002682364",
+      appId: "1:194002682364:web:6f5c48987e4324b3f0f279"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const dbRef = doc(db, "database", "main_projects");
+
     const SECRET_PASS = "kvradmin";
     const categories = ["ค่าแรง", "ค่าคอนกรีต", "ค่า asbuilt", "ค่าช่างคุมงาน", "ค่า ผจ.", "ค่า Food support", "ค่าตรวจรับงาน"];
     const statuses = ["เตรียมจ่าย", "จ่ายแล้ว", "บันทึกลง flowaccount แล้ว"];
     const routeStatuses = ["ยังไม่เริ่มงาน", "กำลังดำเนินการ", "รอใบอนุญาต", "ได้รับใบอนุญาตแล้ว", "วางท่อเสร็จสิ้น", "ส่งมอบงานแล้ว", "ระงับการดำเนินการ"];
     const branchOptions = ["แม้นศรี", "พญาไท", "นนทบุรี", "สมุทรปราการ", "พระโขนง", "ทุ่งมหาเมฆ", "ลาดพร้าว", "ประชาชื่น", "สุขสวัสดิ์", "ตากสิน", "บางกอกน้อย", "ภาษีเจริญ", "บางบัวทอง", "มหาสวัสดิ์", "สุวรรณภูมิ", "มีนบุรี", "แจ้งวัฒนะ", "บางเขน"];
 
-    let projects = JSON.parse(localStorage.getItem('kvr_master_v32')) || [];
-    
-    // --- ระบบจำประวัติ (Undo/Redo) ---
-    let historyStack = [JSON.stringify(projects)];
+    let projects = [];
+    let historyStack = [];
     let historyIndex = 0;
 
-    function save(recordHistory = true) {
-        localStorage.setItem('kvr_master_v32', JSON.stringify(projects));
+    window.onload = function() {
+        const lastLogin = localStorage.getItem('kvr_session');
+        if (lastLogin && (new Date().getTime() - lastLogin) / 60000 < 10) {
+            window.showApp();
+        }
+    };
+
+    window.checkPass = function() {
+        if(document.getElementById('passInput').value === SECRET_PASS) window.showApp();
+        else alert("รหัสผ่านไม่ถูกต้อง");
+    }
+
+    window.showApp = async function() {
+        localStorage.setItem('kvr_session', new Date().getTime());
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('loadingOverlay').style.display = 'flex'; 
+
+        try {
+            const docSnap = await getDoc(dbRef);
+            if (docSnap.exists() && docSnap.data().projects && docSnap.data().projects.length > 0) {
+                // ถ้าบนคลาวด์มีข้อมูลแล้ว โหลดลงมาเลย
+                projects = docSnap.data().projects;
+            } else {
+                // ถ่ายโอนข้อมูลจากเครื่องเก่า โดยกวาดหาจากทุกเวอร์ชันที่เคยทำไว้ (Safeguard 100%)
+                let oldData = localStorage.getItem('kvr_master_v32') || 
+                              localStorage.getItem('kvr_master_v31') || 
+                              localStorage.getItem('kvr_master_v30') || 
+                              localStorage.getItem('kvr_master_v29') || 
+                              localStorage.getItem('kvr_master_v28') || 
+                              localStorage.getItem('kvr_master_v25') || '[]';
+                
+                projects = JSON.parse(oldData);
+                
+                // อัปโหลดขึ้น Firebase ทันที
+                if(projects.length > 0) {
+                    await setDoc(dbRef, { projects: projects });
+                }
+            }
+        } catch(error) {
+            console.error("Firebase Error:", error);
+            alert("⚠️ เชื่อมต่ออินเทอร์เน็ตไม่สำเร็จ ระบบจะดึงข้อมูลสำรองในเครื่องมาแสดงแทนชั่วคราวนะคะ");
+            let backupData = localStorage.getItem('kvr_master_v32') || localStorage.getItem('kvr_master_v31') || '[]';
+            projects = JSON.parse(backupData);
+        }
+
+        document.getElementById('loadingOverlay').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+        
+        historyStack = [JSON.stringify(projects)];
+        historyIndex = 0;
+        render();
+    }
+
+    window.logout = function() { localStorage.removeItem('kvr_session'); location.reload(); }
+
+    async function save(recordHistory = true) {
+        localStorage.setItem('kvr_master_v32', JSON.stringify(projects)); // Backup ลงเครื่อง
         
         if (recordHistory) {
-            // ถ้ามีการแก้ไขใหม่หลังจากที่เคย Undo ไปแล้ว ให้ตัดอนาคตทิ้ง
-            if (historyIndex < historyStack.length - 1) {
-                historyStack = historyStack.slice(0, historyIndex + 1);
-            }
+            if (historyIndex < historyStack.length - 1) historyStack = historyStack.slice(0, historyIndex + 1);
             historyStack.push(JSON.stringify(projects));
             historyIndex++;
         }
         render();
-    }
 
-    function undo() {
-        if (historyIndex > 0) {
-            historyIndex--;
-            projects = JSON.parse(historyStack[historyIndex]);
-            save(false); // บันทึกลง Storage เฉยๆ ไม่ต้องสร้างประวัติซ้อน
+        try {
+            await setDoc(dbRef, { projects: projects }); // โยนขึ้น Cloud เบื้องหลัง
+        } catch(e) {
+            console.error("Save to cloud failed", e);
         }
     }
 
-    function redo() {
+    window.undo = function() {
+        if (historyIndex > 0) {
+            historyIndex--;
+            projects = JSON.parse(historyStack[historyIndex]);
+            save(false);
+        }
+    }
+
+    window.redo = function() {
         if (historyIndex < historyStack.length - 1) {
             historyIndex++;
             projects = JSON.parse(historyStack[historyIndex]);
@@ -154,33 +238,14 @@
         if(btnRedo) btnRedo.disabled = (historyIndex >= historyStack.length - 1);
     }
 
-    // --- Smart Login ---
-    window.onload = function() {
-        const lastLogin = localStorage.getItem('kvr_session');
-        if (lastLogin && (new Date().getTime() - lastLogin) / 60000 < 10) showApp();
-    };
-    function checkPass() {
-        if(document.getElementById('passInput').value === SECRET_PASS) showApp();
-        else alert("รหัสผ่านไม่ถูกต้อง");
-    }
-    function showApp() {
-        localStorage.setItem('kvr_session', new Date().getTime());
-        document.getElementById('loginOverlay').style.display = 'none';
-        document.getElementById('mainContent').style.display = 'block';
-        render();
-    }
-    function logout() { localStorage.removeItem('kvr_session'); location.reload(); }
-
-    // --- Helpers ---
-    function formatInput(el) {
+    window.formatInput = function(el) {
         let val = el.value.replace(/,/g, '');
         if(!isNaN(val) && val !== "") el.value = Number(val).toLocaleString('en-US');
     }
     function unformat(str) { return parseFloat(str.toString().replace(/,/g, '')) || 0; }
     function nf(num) { return Number(num).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
-    // --- Logic ---
-    function saveProject() {
+    window.saveProject = function() {
         const idx = parseInt(document.getElementById('editIdx').value);
         const name = document.getElementById('pName').value;
         const contractVat = unformat(document.getElementById('pContractVat').value);
@@ -202,7 +267,7 @@
         save(); resetForm();
     }
 
-    function editProject(idx) {
+    window.editProject = function(idx) {
         const p = projects[idx];
         document.getElementById('editIdx').value = idx;
         document.getElementById('pType').value = p.type;
@@ -229,7 +294,7 @@
         document.getElementById('submitBtn').classList.replace('btn-green', 'btn-blue');
     }
 
-    function updateProjectDetail(pi, field, val) {
+    window.updateProjectDetail = function(pi, field, val) {
         if (field === 'contractVat') {
             val = unformat(val);
             projects[pi].contractVat = val;
@@ -241,14 +306,13 @@
             projects[pi][field] = val;
         }
         projects[pi].targetCost = projects[pi].contractNoVat * (projects[pi].costPercent / 100);
-        
         if (projects[pi].type === 'normal' && projects[pi].totalDist > 0) {
             projects[pi].routes.forEach(r => { r.initialBudget = (r.dist / projects[pi].totalDist) * projects[pi].targetCost; });
         }
         save();
     }
 
-    function addRouteInline(pi) {
+    window.addRouteInline = function(pi) {
         const name = document.getElementById(`newRName-${pi}`).value;
         const dist = document.getElementById(`newRDist-${pi}`).value;
         if(!name) return;
@@ -262,7 +326,7 @@
         save();
     }
 
-    function updateRouteInfo(pi, ri, field, val) {
+    window.updateRouteInfo = function(pi, ri, field, val) {
         if(field === 'dist') {
             val = parseFloat(val) || 0;
             projects[pi].routes[ri].dist = val;
@@ -271,37 +335,33 @@
         save();
     }
 
-    function updateP1(pi, ri, field, val) { projects[pi].routes[ri][field] = unformat(val); save(); }
-    function updateCompare(pi, ri, field, val) { projects[pi].routes[ri][field] = val; save(); }
+    window.updateP1 = function(pi, ri, field, val) { projects[pi].routes[ri][field] = unformat(val); save(); }
+    window.updateCompare = function(pi, ri, field, val) { projects[pi].routes[ri][field] = val; save(); }
 
-    function addExpense(pi, ri) {
+    window.addExpense = function(pi, ri) {
         const date = document.getElementById(`expDate-${pi}-${ri}`).value || new Date().toISOString().split('T')[0];
         const payee = document.getElementById(`payee-${pi}-${ri}`).value;
         const amt = unformat(document.getElementById(`amt-${pi}-${ri}`).value);
         const remark = document.getElementById(`rem-${pi}-${ri}`).value; 
-        
         if(amt > 0 && payee) {
-            projects[pi].routes[ri].expenses.push({ 
-                date, cat: document.getElementById(`cat-${pi}-${ri}`).value, payee, amt, status: document.getElementById(`status-${pi}-${ri}`).value, remark: remark 
-            });
+            projects[pi].routes[ri].expenses.push({ date, cat: document.getElementById(`cat-${pi}-${ri}`).value, payee, amt, status: document.getElementById(`status-${pi}-${ri}`).value, remark: remark });
             save();
         }
     }
 
-    function updateExp(pi, ri, ei, field, val) { 
+    window.updateExp = function(pi, ri, ei, field, val) { 
         if(field === 'amt') val = unformat(val); 
         projects[pi].routes[ri].expenses[ei][field] = val; 
         save(); 
     }
 
-    function addHandover(pi) {
+    window.addHandover = function(pi) {
         const count = document.getElementById(`hoCount-${pi}`).value;
         const checkboxes = document.querySelectorAll(`.hoCheck-${pi}:checked`);
         if(!count || checkboxes.length === 0) return;
 
         let selectedRoutes = [];
         let totalP1 = 0;
-
         checkboxes.forEach(cb => {
             const ri = parseInt(cb.value);
             const r = projects[pi].routes[ri];
@@ -315,16 +375,16 @@
         save();
     }
 
-    function updateHandover(pi, hi, field, val) {
+    window.updateHandover = function(pi, hi, field, val) {
         if(field === 'totalP1') val = unformat(val);
         projects[pi].handovers[hi][field] = val;
         save();
     }
 
-    function deleteProject(pi) { if(confirm("ยืนยันการลบโครงการนี้?")) { projects.splice(pi, 1); save(); } }
-    function deleteRoute(pi, ri) { if(confirm("ยืนยันการลบเส้นทางซอยนี้?")) { projects[pi].routes.splice(ri, 1); save(); } }
-    function deleteExp(pi, ri, ei) { if(confirm("ยืนยันการลบรายการจ่ายนี้?")) { projects[pi].routes[ri].expenses.splice(ei, 1); save(); } }
-    function deleteHandover(pi, hi) { if(confirm("ยืนยันการลบข้อมูลส่งมอบงาน?")) { projects[pi].handovers.splice(hi, 1); save(); } }
+    window.deleteProject = function(pi) { if(confirm("ยืนยันการลบโครงการนี้?")) { projects.splice(pi, 1); save(); } }
+    window.deleteRoute = function(pi, ri) { if(confirm("ยืนยันการลบเส้นทางซอยนี้?")) { projects[pi].routes.splice(ri, 1); save(); } }
+    window.deleteExp = function(pi, ri, ei) { if(confirm("ยืนยันการลบรายการจ่ายนี้?")) { projects[pi].routes[ri].expenses.splice(ei, 1); save(); } }
+    window.deleteHandover = function(pi, hi) { if(confirm("ยืนยันการลบข้อมูลส่งมอบงาน?")) { projects[pi].handovers.splice(hi, 1); save(); } }
 
     function render() {
         const list = document.getElementById('projectList');
@@ -337,23 +397,23 @@
                 <div class="card ${p.type==='openend'?'project-openend':'project-section'}">
                     
                     <div style="float:right; display:flex; gap:5px;">
-                        <button class="btn-blue" onclick="editProject(${pi})">📝 แก้ไขรายละเอียด</button>
-                        <button class="btn-red" onclick="deleteProject(${pi})">ลบโครงการ</button>
+                        <button class="btn-blue" onclick="window.editProject(${pi})">📝 แก้ไขรายละเอียด</button>
+                        <button class="btn-red" onclick="window.deleteProject(${pi})">ลบโครงการ</button>
                     </div>
                     
                     <div style="display:flex; gap:10px; align-items:center; margin-bottom:15px; width:70%;">
-                        <input class="inline-input" style="font-size:20px; text-align:left;" value="${p.name}" onchange="updateProjectDetail(${pi}, 'name', this.value)" placeholder="ชื่อโครงการ">
-                        <select style="width:150px; font-family:'Sarabun'; border:none; background:transparent; font-size:16px; color:var(--primary); font-weight:bold; cursor:pointer;" onchange="updateProjectDetail(${pi}, 'branch', this.value)">
+                        <input class="inline-input" style="font-size:20px; text-align:left;" value="${p.name}" onchange="window.updateProjectDetail(${pi}, 'name', this.value)" placeholder="ชื่อโครงการ">
+                        <select style="width:150px; font-family:'Sarabun'; border:none; background:transparent; font-size:16px; color:var(--primary); font-weight:bold; cursor:pointer;" onchange="window.updateProjectDetail(${pi}, 'branch', this.value)">
                             ${branchOptions.map(b => `<option value="${b}" ${p.branch===b?'selected':''}>สาขา${b}</option>`).join('')}
                         </select>
-                        <input class="inline-input" style="color:var(--permit); font-size:16px; text-align:left;" value="${p.dept}" onchange="updateProjectDetail(${pi}, 'dept', this.value)" placeholder="กองงาน">
+                        <input class="inline-input" style="color:var(--permit); font-size:16px; text-align:left;" value="${p.dept}" onchange="window.updateProjectDetail(${pi}, 'dept', this.value)" placeholder="กองงาน">
                     </div>
 
                     <div class="summary-grid">
-                        <div class="summary-item"><span class="label">รวม (เมตร)</span><input class="inline-input" style="font-size:16px;" value="${p.totalDist}" onchange="updateProjectDetail(${pi}, 'totalDist', this.value)"></div>
-                        <div class="summary-item"><span class="label">สัญญา (VAT)</span><input class="inline-input" style="font-size:14px;" value="${nf(p.contractVat)}" oninput="formatInput(this)" onchange="updateProjectDetail(${pi}, 'contractVat', this.value)"></div>
+                        <div class="summary-item"><span class="label">รวม (เมตร)</span><input class="inline-input" style="font-size:16px;" value="${p.totalDist}" onchange="window.updateProjectDetail(${pi}, 'totalDist', this.value)"></div>
+                        <div class="summary-item"><span class="label">สัญญา (VAT)</span><input class="inline-input" style="font-size:14px;" value="${nf(p.contractVat)}" oninput="window.formatInput(this)" onchange="window.updateProjectDetail(${pi}, 'contractVat', this.value)"></div>
                         <div class="summary-item"><span class="label">สัญญา (No VAT)</span><span class="val">${nf(p.contractNoVat)}</span></div>
-                        <div class="summary-item"><span class="label">งบเป้าหมาย ( <input type="number" value="${p.costPercent}" style="width:40px; border:none; background:none; text-align:center; font-weight:bold; font-family:'Sarabun';" onchange="updateProjectDetail(${pi}, 'costPercent', this.value)"> %)</span><span class="val">${nf(p.targetCost)}</span></div>
+                        <div class="summary-item"><span class="label">งบเป้าหมาย ( <input type="number" value="${p.costPercent}" style="width:40px; border:none; background:none; text-align:center; font-weight:bold; font-family:'Sarabun';" onchange="window.updateProjectDetail(${pi}, 'costPercent', this.value)"> %)</span><span class="val">${nf(p.targetCost)}</span></div>
                         <div class="summary-item"><span class="label">จ่ายสะสม</span><span class="val" style="color:var(--danger)">${nf(totalSpent)}</span></div>
                         <div class="summary-item"><span class="label">คงเหลือรวม</span><span class="val">${nf(p.targetCost - totalSpent)}</span></div>
                     </div>
@@ -388,21 +448,21 @@
                         return `
                             <div class="route-card">
                                 <div style="display:grid; grid-template-columns: 2fr 1fr 1.5fr auto; gap:10px; align-items:end; margin-bottom:10px;">
-                                    <div><span class="label">ชื่อเส้นทาง (พิมพ์เพื่อแก้)</span><input class="inline-input" style="text-align:left;" value="${r.name}" onchange="updateRouteInfo(${pi}, ${ri}, 'name', this.value)"></div>
-                                    <div><span class="label">ระยะทาง (ม.)</span><input class="inline-input" style="text-align:left;" value="${r.dist}" onchange="updateRouteInfo(${pi}, ${ri}, 'dist', this.value)"></div>
+                                    <div><span class="label">ชื่อเส้นทาง (พิมพ์เพื่อแก้)</span><input class="inline-input" style="text-align:left;" value="${r.name}" onchange="window.updateRouteInfo(${pi}, ${ri}, 'name', this.value)"></div>
+                                    <div><span class="label">ระยะทาง (ม.)</span><input class="inline-input" style="text-align:left;" value="${r.dist}" onchange="window.updateRouteInfo(${pi}, ${ri}, 'dist', this.value)"></div>
                                     <div><span class="label">สถานะงาน</span>
-                                        <select style="border:1px solid #ddd; padding:4px; font-family:'Sarabun'; border-radius:4px;" onchange="updateRouteInfo(${pi}, ${ri}, 'status', this.value)">
+                                        <select style="border:1px solid #ddd; padding:4px; font-family:'Sarabun'; border-radius:4px;" onchange="window.updateRouteInfo(${pi}, ${ri}, 'status', this.value)">
                                             ${routeStatuses.map(s => `<option value="${s}" ${r.status===s?'selected':''}>${s}</option>`).join('')}
                                         </select>
                                     </div>
-                                    <button class="btn-red" style="padding:4px 8px; font-size:11px;" onclick="deleteRoute(${pi}, ${ri})">ลบซอย</button>
+                                    <button class="btn-red" style="padding:4px 8px; font-size:11px;" onclick="window.deleteRoute(${pi}, ${ri})">ลบซอย</button>
                                 </div>
 
                                 <div class="p1-section">
                                     <div style="margin-bottom:10px; padding-bottom:10px; border-bottom:1px dashed #ccc; display:flex; justify-content:space-between;">
                                         <span style="font-weight:bold; color:var(--dark);">
                                             💡 P1 ประเมินตามเส้นทาง: 
-                                            <select style="border:none; background:#f0f4f8; padding:2px 5px; border-radius:4px; font-size:12px; color:#555; cursor:pointer;" onchange="updateProjectDetail(${pi}, 'p1Base', this.value)">
+                                            <select style="border:none; background:#f0f4f8; padding:2px 5px; border-radius:4px; font-size:12px; color:#555; cursor:pointer;" onchange="window.updateProjectDetail(${pi}, 'p1Base', this.value)">
                                                 <option value="vat" ${(p.p1Base||'vat')==='vat'?'selected':''}>จากสัญญา (รวม VAT)</option>
                                                 <option value="novat" ${(p.p1Base||'vat')==='novat'?'selected':''}>จากสัญญา (No VAT)</option>
                                                 <option value="target" ${(p.p1Base||'vat')==='target'?'selected':''}>จากงบเป้าหมาย</option>
@@ -411,21 +471,21 @@
                                     </div>
                                     <div class="p1-grid">
                                         <div><span class="label">1. P1 ประเมิน (ตามเมตร)</span><span class="val" style="padding:4px 0;">${nf(p1Dist)}</span></div>
-                                        <div><span class="label">2. P1 ประเมินเอง</span><input class="inline-input" style="border-bottom:1px solid #eee;" value="${nf(p1Self)}" oninput="formatInput(this)" onchange="updateP1(${pi}, ${ri}, 'p1SelfVat', this.value)"></div>
-                                        <div><span class="label">3. P1 ช่างคุมงาน</span><input class="inline-input" style="border-bottom:1px solid #eee;" value="${nf(p1Sup)}" oninput="formatInput(this)" onchange="updateP1(${pi}, ${ri}, 'p1SupVat', this.value)"></div>
-                                        <div><span class="label" style="color:var(--permit)">4. P1 วิศวกร (หลัก)</span><input class="inline-input" style="border-bottom:1px solid #eee;" value="${nf(p1Eng)}" oninput="formatInput(this)" onchange="updateP1(${pi}, ${ri}, 'p1EngVat', this.value)"></div>
+                                        <div><span class="label">2. P1 ประเมินเอง</span><input class="inline-input" style="border-bottom:1px solid #eee;" value="${nf(p1Self)}" oninput="window.formatInput(this)" onchange="window.updateP1(${pi}, ${ri}, 'p1SelfVat', this.value)"></div>
+                                        <div><span class="label">3. P1 ช่างคุมงาน</span><input class="inline-input" style="border-bottom:1px solid #eee;" value="${nf(p1Sup)}" oninput="window.formatInput(this)" onchange="window.updateP1(${pi}, ${ri}, 'p1SupVat', this.value)"></div>
+                                        <div><span class="label" style="color:var(--permit)">4. P1 วิศวกร (หลัก)</span><input class="inline-input" style="border-bottom:1px solid #eee;" value="${nf(p1Eng)}" oninput="window.formatInput(this)" onchange="window.updateP1(${pi}, ${ri}, 'p1EngVat', this.value)"></div>
                                     </div>
                                     
                                     <div class="compare-row">
                                         <span style="font-weight:bold;">⚖️ เปรียบเทียบ:</span>
-                                        <select style="padding:4px; font-family:'Sarabun'; border-radius:4px; border:1px solid #ddd;" onchange="updateCompare(${pi}, ${ri}, 'compareA', this.value)">
+                                        <select style="padding:4px; font-family:'Sarabun'; border-radius:4px; border:1px solid #ddd;" onchange="window.updateCompare(${pi}, ${ri}, 'compareA', this.value)">
                                             <option value="p1Dist" ${(r.compareA||'p1Dist')==='p1Dist'?'selected':''}>1. P1 ประเมินจากเส้นทาง</option>
                                             <option value="p1Self" ${(r.compareA||'p1Dist')==='p1Self'?'selected':''}>2. P1 ประเมินเอง</option>
                                             <option value="p1Sup" ${(r.compareA||'p1Dist')==='p1Sup'?'selected':''}>3. P1 ช่างคุมงาน</option>
                                             <option value="p1Eng" ${(r.compareA||'p1Dist')==='p1Eng'?'selected':''}>4. P1 วิศวกร</option>
                                         </select>
                                         <span style="font-weight:bold;">กับ</span>
-                                        <select style="padding:4px; font-family:'Sarabun'; border-radius:4px; border:1px solid #ddd;" onchange="updateCompare(${pi}, ${ri}, 'compareB', this.value)">
+                                        <select style="padding:4px; font-family:'Sarabun'; border-radius:4px; border:1px solid #ddd;" onchange="window.updateCompare(${pi}, ${ri}, 'compareB', this.value)">
                                             <option value="p1Dist" ${(r.compareB||'p1Eng')==='p1Dist'?'selected':''}>1. P1 ประเมินจากเส้นทาง</option>
                                             <option value="p1Self" ${(r.compareB||'p1Eng')==='p1Self'?'selected':''}>2. P1 ประเมินเอง</option>
                                             <option value="p1Sup" ${(r.compareB||'p1Eng')==='p1Sup'?'selected':''}>3. P1 ช่างคุมงาน</option>
@@ -451,24 +511,24 @@
                                 <div style="display:grid; grid-template-columns: 0.9fr 1.2fr 1.5fr 1.2fr 1fr 1.5fr auto; gap:5px; background:#f9f9f9; padding:10px; border-radius:5px; align-items:end; margin-bottom:10px;">
                                     <div><span class="label">วันที่</span><input type="date" id="expDate-${pi}-${ri}"></div>
                                     <div><span class="label">หมวด</span><select id="cat-${pi}-${ri}">${categories.map(c => `<option value="${c}">${c}</option>`).join('')}</select></div>
-                                    <div><span class="label">ผู้รับเงิน</span><input type="text" id="payee-${pi}-${ri}" placeholder="ผู้รับเงิน" onkeyup="if(event.key==='Enter') addExpense(${pi}, ${ri})"></div>
-                                    <div><span class="label">จำนวน</span><input type="text" id="amt-${pi}-${ri}" oninput="formatInput(this)" placeholder="จำนวน" onkeyup="if(event.key==='Enter') addExpense(${pi}, ${ri})"></div>
+                                    <div><span class="label">ผู้รับเงิน</span><input type="text" id="payee-${pi}-${ri}" placeholder="ผู้รับเงิน" onkeyup="if(event.key==='Enter') window.addExpense(${pi}, ${ri})"></div>
+                                    <div><span class="label">จำนวน</span><input type="text" id="amt-${pi}-${ri}" oninput="window.formatInput(this)" placeholder="จำนวน" onkeyup="if(event.key==='Enter') window.addExpense(${pi}, ${ri})"></div>
                                     <div><span class="label">สถานะ</span><select id="status-${pi}-${ri}">${statuses.map(s => `<option value="${s}">${s}</option>`).join('')}</select></div>
-                                    <div><span class="label">หมายเหตุ</span><input type="text" id="rem-${pi}-${ri}" placeholder="โน้ตเพิ่มเติม..." onkeyup="if(event.key==='Enter') addExpense(${pi}, ${ri})"></div>
-                                    <button class="btn-blue" onclick="addExpense(${pi}, ${ri})">บันทึก</button>
+                                    <div><span class="label">หมายเหตุ</span><input type="text" id="rem-${pi}-${ri}" placeholder="โน้ตเพิ่มเติม..." onkeyup="if(event.key==='Enter') window.addExpense(${pi}, ${ri})"></div>
+                                    <button class="btn-blue" onclick="window.addExpense(${pi}, ${ri})">บันทึก</button>
                                 </div>
 
                                 <table class="exp-table">
                                     <thead><tr><th style="width:10%">วันที่</th><th style="width:14%">หมวด</th><th style="width:20%">ผู้รับเงิน</th><th style="width:14%">จำนวนเงิน</th><th style="width:14%">สถานะ</th><th style="width:23%">หมายเหตุ</th><th style="width:5%">ลบ</th></tr></thead>
                                     <tbody>${r.expenses.map((e, ei) => `
                                         <tr>
-                                            <td><input type="date" class="table-input" value="${e.date}" onchange="updateExp(${pi}, ${ri}, ${ei}, 'date', this.value)"></td>
-                                            <td><select class="table-input" onchange="updateExp(${pi}, ${ri}, ${ei}, 'cat', this.value)">${categories.map(c => `<option value="${c}" ${e.cat===c?'selected':''}>${c}</option>`).join('')}</select></td>
-                                            <td><input type="text" class="table-input" value="${e.payee}" onchange="updateExp(${pi}, ${ri}, ${ei}, 'payee', this.value)"></td>
-                                            <td><input type="text" class="table-input" value="${nf(e.amt)}" oninput="formatInput(this)" onchange="updateExp(${pi}, ${ri}, ${ei}, 'amt', this.value)" style="font-weight:bold; color:var(--primary)"></td>
-                                            <td><select class="table-input" onchange="updateExp(${pi}, ${ri}, ${ei}, 'status', this.value)">${statuses.map(s => `<option value="${s}" ${e.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
-                                            <td><input type="text" class="table-input" value="${e.remark || ''}" onchange="updateExp(${pi}, ${ri}, ${ei}, 'remark', this.value)" placeholder="เพิ่มหมายเหตุ..."></td>
-                                            <td><button onclick="deleteExp(${pi}, ${ri}, ${ei})" style="color:red; border:none; background:none; cursor:pointer;">x</button></td>
+                                            <td><input type="date" class="table-input" value="${e.date}" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'date', this.value)"></td>
+                                            <td><select class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'cat', this.value)">${categories.map(c => `<option value="${c}" ${e.cat===c?'selected':''}>${c}</option>`).join('')}</select></td>
+                                            <td><input type="text" class="table-input" value="${e.payee}" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'payee', this.value)"></td>
+                                            <td><input type="text" class="table-input" value="${nf(e.amt)}" oninput="window.formatInput(this)" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'amt', this.value)" style="font-weight:bold; color:var(--primary)"></td>
+                                            <td><select class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'status', this.value)">${statuses.map(s => `<option value="${s}" ${e.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
+                                            <td><input type="text" class="table-input" value="${e.remark || ''}" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'remark', this.value)" placeholder="เพิ่มหมายเหตุ..."></td>
+                                            <td><button onclick="window.deleteExp(${pi}, ${ri}, ${ei})" style="color:red; border:none; background:none; cursor:pointer;">x</button></td>
                                         </tr>`).join('')}
                                     </tbody>
                                 </table>
@@ -477,16 +537,16 @@
                     }).join('')}
                     
                     <div style="background:#f0f7ff; padding:15px; border-radius:8px; margin-top:20px; display:grid; grid-template-columns: 2fr 1fr auto; gap:10px; align-items:end;">
-                        <div><span class="label">ชื่อซอยใหม่</span><input type="text" id="newRName-${pi}" placeholder="ซอย..." onkeyup="if(event.key==='Enter') addRouteInline(${pi})"></div>
-                        <div><span class="label">เมตร</span><input type="number" id="newRDist-${pi}" onkeyup="if(event.key==='Enter') addRouteInline(${pi})"></div>
-                        <button class="btn-green" onclick="addRouteInline(${pi})">เพิ่มเส้นทาง</button>
+                        <div><span class="label">ชื่อซอยใหม่</span><input type="text" id="newRName-${pi}" placeholder="ซอย..." onkeyup="if(event.key==='Enter') window.addRouteInline(${pi})"></div>
+                        <div><span class="label">เมตร</span><input type="number" id="newRDist-${pi}" onkeyup="if(event.key==='Enter') window.addRouteInline(${pi})"></div>
+                        <button class="btn-green" onclick="window.addRouteInline(${pi})">เพิ่มเส้นทาง</button>
                     </div>
 
                     <div class="card" style="margin-top: 20px; background: #fdfefe; border: 1px solid #e0e6ed;">
                         <h3>🚚 ส่งมอบงาน</h3>
                         <div style="display:flex; gap:10px; align-items:end; margin-bottom:10px;">
-                            <div style="flex:1;"><span class="label">งวดที่</span><input type="text" id="hoCount-${pi}" placeholder="เช่น งวดที่ 1" onkeyup="if(event.key==='Enter') addHandover(${pi})"></div>
-                            <button class="btn-green" onclick="addHandover(${pi})">บันทึกส่งงาน</button>
+                            <div style="flex:1;"><span class="label">งวดที่</span><input type="text" id="hoCount-${pi}" placeholder="เช่น งวดที่ 1" onkeyup="if(event.key==='Enter') window.addHandover(${pi})"></div>
+                            <button class="btn-green" onclick="window.addHandover(${pi})">บันทึกส่งงาน</button>
                         </div>
                         <div style="font-size:13px; padding:10px; background:#f9f9f9; border-radius:5px; margin-bottom:10px; border:1px solid #eee;">
                             <span class="label" style="margin-bottom:8px;">☑️ เลือกเส้นทางที่ต้องการส่งมอบ:</span>
@@ -499,11 +559,11 @@
                             <tbody>
                                 ${(p.handovers || []).map((h, hi) => `
                                     <tr>
-                                        <td style="vertical-align:top;"><input type="date" class="table-input" value="${h.date}" onchange="updateHandover(${pi}, ${hi}, 'date', this.value)"></td>
-                                        <td style="vertical-align:top;"><input type="text" class="table-input" value="${h.count}" onchange="updateHandover(${pi}, ${hi}, 'count', this.value)"></td>
-                                        <td style="vertical-align:top;"><textarea class="table-input" onchange="updateHandover(${pi}, ${hi}, 'routes', this.value)" style="width:100%; box-sizing:border-box; resize:vertical; min-height:40px; font-family:'Sarabun';">${h.routes}</textarea></td>
-                                        <td style="vertical-align:top;"><input type="text" class="table-input" value="${nf(h.totalP1)}" oninput="formatInput(this)" onchange="updateHandover(${pi}, ${hi}, 'totalP1', this.value)" style="font-weight:bold; color:var(--primary)"></td>
-                                        <td style="vertical-align:top;"><button onclick="deleteHandover(${pi}, ${hi})" style="color:red; border:none; background:none; cursor:pointer;">x</button></td>
+                                        <td style="vertical-align:top;"><input type="date" class="table-input" value="${h.date}" onchange="window.updateHandover(${pi}, ${hi}, 'date', this.value)"></td>
+                                        <td style="vertical-align:top;"><input type="text" class="table-input" value="${h.count}" onchange="window.updateHandover(${pi}, ${hi}, 'count', this.value)"></td>
+                                        <td style="vertical-align:top;"><textarea class="table-input" onchange="window.updateHandover(${pi}, ${hi}, 'routes', this.value)" style="width:100%; box-sizing:border-box; resize:vertical; min-height:40px; font-family:'Sarabun';">${h.routes}</textarea></td>
+                                        <td style="vertical-align:top;"><input type="text" class="table-input" value="${nf(h.totalP1)}" oninput="window.formatInput(this)" onchange="window.updateHandover(${pi}, ${hi}, 'totalP1', this.value)" style="font-weight:bold; color:var(--primary)"></td>
+                                        <td style="vertical-align:top;"><button onclick="window.deleteHandover(${pi}, ${hi})" style="color:red; border:none; background:none; cursor:pointer;">x</button></td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -513,7 +573,7 @@
                 </div>
             `;
         });
-        updateUndoRedoUI(); // สั่งให้อัปเดตสถานะปุ่ม Undo/Redo หลังจากเรนเดอร์เสร็จ
+        updateUndoRedoUI();
     }
 </script>
 </body>
