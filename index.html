@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KVRdevelopment - Cloud Safe Sync</title>
+    <title>KVRdevelopment - Cloud Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #2980b9; --secondary: #27ae60; --danger: #e74c3c; --warning: #f39c12; --bg: #f4f7f6; --dark: #2c3e50; --permit: #8e44ad; }
@@ -24,6 +24,14 @@
         .btn-blue { background: var(--primary); color: white; }
         .btn-green { background: var(--secondary); color: white; }
         .btn-red { background: var(--danger); color: white; }
+        .btn-back { background: var(--dark); color: white; padding: 10px 15px; font-size: 14px; margin-bottom: 15px; display: inline-block; }
+        
+        /* Dashboard & Folders */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; margin-top: 20px; }
+        .folder-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); cursor: pointer; border-top: 5px solid var(--primary); transition: transform 0.2s, box-shadow 0.2s; position: relative; }
+        .folder-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.15); border-top: 5px solid var(--warning); }
+        .folder-card h3 { margin-top: 0; color: var(--dark); font-size: 18px; margin-bottom: 5px; }
+        .folder-openend { border-top: 5px solid var(--permit); }
         
         /* Undo / Redo */
         .btn-history { background: #ecf0f1; color: #2c3e50; border: 1px solid #bdc3c7; margin-right: 5px; }
@@ -88,7 +96,7 @@
         <button onclick="window.logout()" style="background:#7f8c8d; color:white;">ออกจากระบบ</button>
     </div>
 
-    <div class="card" style="border-top: 5px solid var(--dark);">
+    <div class="card" id="formContainer" style="border-top: 5px solid var(--dark);">
         <h3 id="formTitle" style="margin-top:0;">➕ สร้างโครงการใหม่</h3>
         <div style="display: grid; grid-template-columns: 0.7fr 1.5fr 1.2fr 1.2fr 1fr 0.8fr 0.8fr auto; gap: 10px; margin-bottom: 15px;">
             <input type="hidden" id="editIdx" value="-1">
@@ -113,7 +121,10 @@
         </div>
     </div>
 
-    <div id="projectList"></div>
+    <div id="dashboardView" class="dashboard-grid"></div>
+
+    <div id="detailView" style="display:none;"></div>
+
 </div>
 
 <script type="module">
@@ -142,6 +153,9 @@
     let projects = [];
     let historyStack = [];
     let historyIndex = 0;
+    
+    // ตัวแปรสำคัญ: จำว่ากำลังเปิดโฟลเดอร์โปรเจกต์ไหนอยู่ (-1 แปลว่าอยู่หน้ารวม)
+    let activeProjectIndex = -1;
 
     window.onload = function() {
         const lastLogin = localStorage.getItem('kvr_session');
@@ -163,27 +177,14 @@
         try {
             const docSnap = await getDoc(dbRef);
             if (docSnap.exists() && docSnap.data().projects && docSnap.data().projects.length > 0) {
-                // ถ้าบนคลาวด์มีข้อมูลแล้ว โหลดลงมาเลย
                 projects = docSnap.data().projects;
             } else {
-                // ถ่ายโอนข้อมูลจากเครื่องเก่า โดยกวาดหาจากทุกเวอร์ชันที่เคยทำไว้ (Safeguard 100%)
-                let oldData = localStorage.getItem('kvr_master_v32') || 
-                              localStorage.getItem('kvr_master_v31') || 
-                              localStorage.getItem('kvr_master_v30') || 
-                              localStorage.getItem('kvr_master_v29') || 
-                              localStorage.getItem('kvr_master_v28') || 
-                              localStorage.getItem('kvr_master_v25') || '[]';
-                
+                let oldData = localStorage.getItem('kvr_master_v32') || localStorage.getItem('kvr_master_v31') || '[]';
                 projects = JSON.parse(oldData);
-                
-                // อัปโหลดขึ้น Firebase ทันที
-                if(projects.length > 0) {
-                    await setDoc(dbRef, { projects: projects });
-                }
+                if(projects.length > 0) await setDoc(dbRef, { projects: projects });
             }
         } catch(error) {
             console.error("Firebase Error:", error);
-            alert("⚠️ เชื่อมต่ออินเทอร์เน็ตไม่สำเร็จ ระบบจะดึงข้อมูลสำรองในเครื่องมาแสดงแทนชั่วคราวนะคะ");
             let backupData = localStorage.getItem('kvr_master_v32') || localStorage.getItem('kvr_master_v31') || '[]';
             projects = JSON.parse(backupData);
         }
@@ -199,20 +200,14 @@
     window.logout = function() { localStorage.removeItem('kvr_session'); location.reload(); }
 
     async function save(recordHistory = true) {
-        localStorage.setItem('kvr_master_v32', JSON.stringify(projects)); // Backup ลงเครื่อง
-        
+        localStorage.setItem('kvr_master_v32', JSON.stringify(projects));
         if (recordHistory) {
             if (historyIndex < historyStack.length - 1) historyStack = historyStack.slice(0, historyIndex + 1);
             historyStack.push(JSON.stringify(projects));
             historyIndex++;
         }
         render();
-
-        try {
-            await setDoc(dbRef, { projects: projects }); // โยนขึ้น Cloud เบื้องหลัง
-        } catch(e) {
-            console.error("Save to cloud failed", e);
-        }
+        try { await setDoc(dbRef, { projects: projects }); } catch(e) { console.error("Save to cloud failed", e); }
     }
 
     window.undo = function() {
@@ -245,6 +240,20 @@
     function unformat(str) { return parseFloat(str.toString().replace(/,/g, '')) || 0; }
     function nf(num) { return Number(num).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
+    // --- ระบบนำทาง (Navigation) ---
+    window.openProject = function(pi) {
+        activeProjectIndex = pi;
+        render();
+        window.scrollTo({top: 0, behavior: 'smooth'});
+    }
+
+    window.backToDashboard = function() {
+        activeProjectIndex = -1;
+        resetForm(); // ล้างฟอร์มเผื่อแก้ไขค้างไว้
+        render();
+        window.scrollTo({top: 0, behavior: 'smooth'});
+    }
+
     window.saveProject = function() {
         const idx = parseInt(document.getElementById('editIdx').value);
         const name = document.getElementById('pName').value;
@@ -258,7 +267,7 @@
             costPercent: parseFloat(document.getElementById('pCostPercent').value),
             targetCost: (contractVat / 1.07) * (parseFloat(document.getElementById('pCostPercent').value) / 100),
             totalDist: parseFloat(document.getElementById('pTotalDist').value) || 0,
-            p1Base: 'vat',
+            p1Base: projects[idx]?.p1Base || 'vat',
             routes: idx === -1 ? [] : projects[idx].routes,
             handovers: idx === -1 ? [] : (projects[idx].handovers || [])
         };
@@ -317,12 +326,7 @@
         const dist = document.getElementById(`newRDist-${pi}`).value;
         if(!name) return;
         let budget = (projects[pi].totalDist > 0) ? (parseFloat(dist) / projects[pi].totalDist) * projects[pi].targetCost : 0;
-        projects[pi].routes.push({ 
-            name, dist: parseFloat(dist), initialBudget: budget, 
-            p1SelfVat: 0, p1SupVat: 0, p1EngVat: 0, 
-            compareA: 'p1Dist', compareB: 'p1Eng',
-            status: routeStatuses[0], expenses: [] 
-        });
+        projects[pi].routes.push({ name, dist: parseFloat(dist), initialBudget: budget, p1SelfVat: 0, p1SupVat: 0, p1EngVat: 0, compareA: 'p1Dist', compareB: 'p1Eng', status: routeStatuses[0], expenses: [] });
         save();
     }
 
@@ -359,7 +363,6 @@
         const count = document.getElementById(`hoCount-${pi}`).value;
         const checkboxes = document.querySelectorAll(`.hoCheck-${pi}:checked`);
         if(!count || checkboxes.length === 0) return;
-
         let selectedRoutes = [];
         let totalP1 = 0;
         checkboxes.forEach(cb => {
@@ -369,7 +372,6 @@
             let curP1 = r.p1EngVat > 0 ? r.p1EngVat : (r.p1SupVat > 0 ? r.p1SupVat : (r.p1SelfVat > 0 ? r.p1SelfVat : 0));
             totalP1 += curP1;
         });
-
         if(!projects[pi].handovers) projects[pi].handovers = [];
         projects[pi].handovers.push({ date: new Date().toISOString().split('T')[0], count: count, routes: selectedRoutes.join(', '), totalP1: totalP1 });
         save();
@@ -381,32 +383,93 @@
         save();
     }
 
-    window.deleteProject = function(pi) { if(confirm("ยืนยันการลบโครงการนี้?")) { projects.splice(pi, 1); save(); } }
+    window.deleteProject = function(pi) { 
+        if(confirm("ยืนยันการลบโครงการนี้?")) { 
+            projects.splice(pi, 1); 
+            activeProjectIndex = -1; // ถ้าลบแล้วให้กลับหน้าหลัก
+            save(); 
+        } 
+    }
     window.deleteRoute = function(pi, ri) { if(confirm("ยืนยันการลบเส้นทางซอยนี้?")) { projects[pi].routes.splice(ri, 1); save(); } }
     window.deleteExp = function(pi, ri, ei) { if(confirm("ยืนยันการลบรายการจ่ายนี้?")) { projects[pi].routes[ri].expenses.splice(ei, 1); save(); } }
     window.deleteHandover = function(pi, hi) { if(confirm("ยืนยันการลบข้อมูลส่งมอบงาน?")) { projects[pi].handovers.splice(hi, 1); save(); } }
 
     function render() {
-        const list = document.getElementById('projectList');
-        list.innerHTML = '';
-        projects.forEach((p, pi) => {
+        const dashboard = document.getElementById('dashboardView');
+        const detail = document.getElementById('detailView');
+        const formContainer = document.getElementById('formContainer');
+
+        if (activeProjectIndex === -1) {
+            // โหมด 1: หน้า Dashboard (แฟ้มโครงการ)
+            dashboard.style.display = 'grid';
+            detail.style.display = 'none';
+            formContainer.style.display = 'block';
+            
+            dashboard.innerHTML = '';
+            
+            if(projects.length === 0) {
+                dashboard.innerHTML = `<div style="grid-column: 1 / -1; text-align:center; padding: 40px; color:#999; font-size:16px;">ยังไม่มีข้อมูลโครงการ กรุณาสร้างโครงการใหม่ด้านบนค่ะ 👆</div>`;
+            }
+
+            projects.forEach((p, pi) => {
+                let totalSpent = 0;
+                p.routes.forEach(r => r.expenses.forEach(e => totalSpent += e.amt));
+                let balance = p.targetCost - totalSpent;
+
+                dashboard.innerHTML += `
+                    <div class="folder-card ${p.type === 'openend' ? 'folder-openend' : ''}" onclick="window.openProject(${pi})">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <h3 style="margin-bottom:2px;">📁 ${p.name}</h3>
+                            <div style="display:flex; gap:5px; flex-shrink:0; margin-left:10px;">
+                                <button class="btn-blue" style="padding:4px 8px; font-size:11px;" onclick="event.stopPropagation(); window.editProject(${pi})">แก้ไข</button>
+                                <button class="btn-red" style="padding:4px 8px; font-size:11px;" onclick="event.stopPropagation(); window.deleteProject(${pi})">ลบ</button>
+                            </div>
+                        </div>
+                        <div style="color:var(--permit); font-size:13px; margin-bottom:15px;">สาขา: ${p.branch || '-'} | กองงาน: ${p.dept || '-'}</div>
+                        
+                        <div style="background:#f9f9f9; padding:10px; border-radius:6px; font-size:13px;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                <span>งบเป้าหมาย:</span><span style="font-weight:bold;">${nf(p.targetCost)}</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                <span>จ่ายไปแล้ว:</span><span style="font-weight:bold; color:var(--danger)">${nf(totalSpent)}</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; border-top:1px dashed #ccc; padding-top:5px; margin-top:5px;">
+                                <span>คงเหลือ:</span><span style="font-weight:bold; color:${balance < 0 ? 'red' : 'green'}">${nf(balance)}</span>
+                            </div>
+                        </div>
+                        <div style="text-align:center; margin-top:15px; font-size:12px; color:#888;">
+                            ${p.routes.length} เส้นทางซอย
+                        </div>
+                    </div>
+                `;
+            });
+
+        } else {
+            // โหมด 2: หน้าเจาะลึกรายละเอียดโครงการ (ซอย)
+            dashboard.style.display = 'none';
+            formContainer.style.display = 'none';
+            detail.style.display = 'block';
+            detail.innerHTML = '';
+
+            const pi = activeProjectIndex;
+            const p = projects[pi];
+            if(!p) { window.backToDashboard(); return; }
+
             let totalSpent = 0;
             p.routes.forEach(r => r.expenses.forEach(e => totalSpent += e.amt));
 
-            list.innerHTML += `
+            detail.innerHTML = `
+                <button class="btn-back" onclick="window.backToDashboard()">⬅️ กลับหน้ารวมโครงการ</button>
+                
                 <div class="card ${p.type==='openend'?'project-openend':'project-section'}">
                     
-                    <div style="float:right; display:flex; gap:5px;">
-                        <button class="btn-blue" onclick="window.editProject(${pi})">📝 แก้ไขรายละเอียด</button>
-                        <button class="btn-red" onclick="window.deleteProject(${pi})">ลบโครงการ</button>
-                    </div>
-                    
-                    <div style="display:flex; gap:10px; align-items:center; margin-bottom:15px; width:70%;">
-                        <input class="inline-input" style="font-size:20px; text-align:left;" value="${p.name}" onchange="window.updateProjectDetail(${pi}, 'name', this.value)" placeholder="ชื่อโครงการ">
+                    <div style="display:flex; gap:10px; align-items:center; margin-bottom:15px; width:100%;">
+                        <input class="inline-input" style="font-size:24px; text-align:left; flex:2;" value="${p.name}" onchange="window.updateProjectDetail(${pi}, 'name', this.value)" placeholder="ชื่อโครงการ">
                         <select style="width:150px; font-family:'Sarabun'; border:none; background:transparent; font-size:16px; color:var(--primary); font-weight:bold; cursor:pointer;" onchange="window.updateProjectDetail(${pi}, 'branch', this.value)">
                             ${branchOptions.map(b => `<option value="${b}" ${p.branch===b?'selected':''}>สาขา${b}</option>`).join('')}
                         </select>
-                        <input class="inline-input" style="color:var(--permit); font-size:16px; text-align:left;" value="${p.dept}" onchange="window.updateProjectDetail(${pi}, 'dept', this.value)" placeholder="กองงาน">
+                        <input class="inline-input" style="color:var(--permit); font-size:16px; text-align:left; flex:1;" value="${p.dept}" onchange="window.updateProjectDetail(${pi}, 'dept', this.value)" placeholder="กองงาน">
                     </div>
 
                     <div class="summary-grid">
@@ -569,10 +632,9 @@
                             </tbody>
                         </table>
                     </div>
-
                 </div>
             `;
-        });
+        }
         updateUndoRedoUI();
     }
 </script>
