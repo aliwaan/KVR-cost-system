@@ -66,6 +66,10 @@
         .cat-badge:hover { background: #e8f4f8; transform: translateY(-2px); }
         .active-filter { background: var(--primary); color: white; border-color: var(--dark); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
         .active-filter:hover { background: #1f6391; }
+        
+        .alert-box { background: #fdf2f2; border-left: 5px solid var(--danger); padding: 15px; margin-bottom: 20px; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .link-text { color: var(--primary); text-decoration: underline; cursor: pointer; font-weight: bold; }
+        .link-text:hover { color: var(--dark); }
     </style>
 </head>
 <body>
@@ -123,17 +127,21 @@
     const SECRET_PASS = "kvradmin";
     const categories = ["ค่าแรง", "ค่าคอนกรีต", "ค่า asbuilt", "ค่าช่างคุมงาน", "ค่า ผจ.", "ค่า Food support", "ค่าตรวจรับงาน"];
     const statuses = ["เตรียมจ่าย", "จ่ายแล้ว", "บันทึกลง flowaccount แล้ว"];
-    const routeStatuses = ["ยังไม่เริ่มงาน", "กำลังดำเนินการ", "รอใบอนุญาต", "ได้รับใบอนุญาตแล้ว", "วางท่อเสร็จสิ้น", "ส่งมอบงานแล้ว", "ระงับการดำเนินการ"];
+    // อัปเดตสถานะใหม่ 3 สถานะ
+    const routeStatuses = [
+        "ยังไม่เริ่มงาน", "กำลังดำเนินการ", "รอใบอนุญาต", "ได้รับใบอนุญาตแล้ว", 
+        "วางท่อเสร็จสิ้น", "วางท่อเสร็จสิ้น รอราคาP1", "วางท่อเสร็จสิ้น ปิดยอดค่าแรงแล้ว", 
+        "วางท่อเสร็จสิ้น ปิดยอดค่าใช้จ่ายทั้งหมดแล้ว", "ส่งมอบงานแล้ว", "ระงับการดำเนินการ"
+    ];
     const branchOptions = ["แม้นศรี", "พญาไท", "นนทบุรี", "สมุทรปราการ", "พระโขนง", "ทุ่งมหาเมฆ", "ลาดพร้าว", "ประชาชื่น", "สุขสวัสดิ์", "ตากสิน", "บางกอกน้อย", "ภาษีเจริญ", "บางบัวทอง", "มหาสวัสดิ์", "สุวรรณภูมิ", "มีนบุรี", "แจ้งวัฒนะ", "บางเขน"];
 
     let projects = [];
+    window.payerOptions = ["เงินบริษัท", "เงินส่วนตัว"]; // ค่าเริ่มต้น
     let historyStack = [];
     let historyIndex = 0;
     
     let activeProjectIndex = -1;
     let activeRouteIndex = -1;
-    
-    // ตัวแปรเก็บสถานะฟิลเตอร์
     window.currentFilterCat = 'ทั้งหมด';
 
     window.onload = function() {
@@ -157,10 +165,11 @@
             const docSnap = await getDoc(dbRef);
             if (docSnap.exists() && docSnap.data().projects && docSnap.data().projects.length > 0) {
                 projects = docSnap.data().projects;
+                if(docSnap.data().payers) window.payerOptions = docSnap.data().payers;
             } else {
                 let oldData = localStorage.getItem('kvr_master_v32') || localStorage.getItem('kvr_master_v31') || '[]';
                 projects = JSON.parse(oldData);
-                if(projects.length > 0) await setDoc(dbRef, { projects: projects });
+                if(projects.length > 0) await setDoc(dbRef, { projects: projects, payers: window.payerOptions });
             }
         } catch(error) {
             console.error("Firebase Error:", error);
@@ -186,7 +195,7 @@
             historyIndex++;
         }
         render();
-        try { await setDoc(dbRef, { projects: projects }); } catch(e) { console.error("Save to cloud failed", e); }
+        try { await setDoc(dbRef, { projects: projects, payers: window.payerOptions }); } catch(e) { console.error("Save to cloud failed", e); }
     }
 
     window.undo = function() {
@@ -226,39 +235,32 @@
     window.unformat = function(str) { return parseFloat(str.toString().replace(/,/g, '')) || 0; }
     window.nf = function(num) { return Number(num).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
-    window.setExpenseFilter = function(cat) {
-        window.currentFilterCat = cat;
-        render();
-    }
+    window.setExpenseFilter = function(cat) { window.currentFilterCat = cat; render(); }
+    
+    window.openProject = function(pi) { activeProjectIndex = pi; activeRouteIndex = -1; window.currentFilterCat = 'ทั้งหมด'; render(); window.scrollTo({top: 0, behavior: 'smooth'}); }
+    window.openRoute = function(ri) { activeRouteIndex = ri; window.currentFilterCat = 'ทั้งหมด'; render(); window.scrollTo({top: 0, behavior: 'smooth'}); }
+    window.backToDashboard = function() { activeProjectIndex = -1; activeRouteIndex = -1; window.currentFilterCat = 'ทั้งหมด'; render(); window.scrollTo({top: 0, behavior: 'smooth'}); }
+    window.backToProject = function() { activeRouteIndex = -1; window.currentFilterCat = 'ทั้งหมด'; render(); window.scrollTo({top: 0, behavior: 'smooth'}); }
 
-    window.openProject = function(pi) {
+    // ฟังก์ชันวาร์ปจากหน้าแรกไปหน้าซอย
+    window.openRouteLevel = function(pi, ri) {
         activeProjectIndex = pi;
-        activeRouteIndex = -1;
-        window.currentFilterCat = 'ทั้งหมด';
-        render();
-        window.scrollTo({top: 0, behavior: 'smooth'});
-    }
-
-    window.openRoute = function(ri) {
         activeRouteIndex = ri;
         window.currentFilterCat = 'ทั้งหมด';
         render();
         window.scrollTo({top: 0, behavior: 'smooth'});
     }
 
-    window.backToDashboard = function() {
-        activeProjectIndex = -1;
-        activeRouteIndex = -1;
-        window.currentFilterCat = 'ทั้งหมด';
-        render();
-        window.scrollTo({top: 0, behavior: 'smooth'});
-    }
-
-    window.backToProject = function() {
-        activeRouteIndex = -1;
-        window.currentFilterCat = 'ทั้งหมด';
-        render();
-        window.scrollTo({top: 0, behavior: 'smooth'});
+    // ฟังก์ชันตั้งค่าผู้จ่ายเงิน (From)
+    window.managePayers = function() {
+        let current = window.payerOptions.join(", ");
+        let input = prompt("⚙️ ตั้งค่ารายชื่อ ผู้จ่ายเงิน (From)\nกรุณาพิมพ์ชื่อโดยคั่นด้วยเครื่องหมายลูกน้ำ ( , )", current);
+        if (input !== null) {
+            let newArray = input.split(",").map(s => s.trim()).filter(s => s !== "");
+            if (newArray.length === 0) newArray = ["เงินบริษัท"]; // เผื่อเผลอลบหมด
+            window.payerOptions = newArray;
+            save(); 
+        }
     }
 
     window.saveProjectForm = function() {
@@ -281,51 +283,29 @@
 
         if(idx === -1) projects.push(data); else projects[idx] = data;
         save();
-        document.getElementById('pName').value = ''; 
-        document.getElementById('pContractVat').value = '';
-        document.getElementById('pDept').value = '';
-        document.getElementById('pTotalDist').value = '';
-        document.getElementById('editIdx').value = "-1";
-        document.getElementById('submitBtn').innerText = "สร้างโครงการ";
-        document.getElementById('submitBtn').classList.replace('btn-green', 'btn-blue');
+        document.getElementById('pName').value = ''; document.getElementById('pContractVat').value = ''; document.getElementById('pDept').value = ''; document.getElementById('pTotalDist').value = '';
+        document.getElementById('editIdx').value = "-1"; document.getElementById('submitBtn').innerText = "สร้างโครงการ"; document.getElementById('submitBtn').classList.replace('btn-green', 'btn-blue');
     }
 
     window.editProjectForm = function(idx) {
         const p = projects[idx];
-        document.getElementById('editIdx').value = idx;
-        document.getElementById('pType').value = p.type;
-        document.getElementById('pName').value = p.name;
-        document.getElementById('pBranch').value = p.branch;
-        document.getElementById('pDept').value = p.dept;
-        document.getElementById('pContractVat').value = window.nf(p.contractVat);
-        document.getElementById('pCostPercent').value = p.costPercent;
-        document.getElementById('pTotalDist').value = p.totalDist;
-        document.getElementById('submitBtn').innerText = "อัปเดตข้อมูล";
-        document.getElementById('submitBtn').classList.replace('btn-blue', 'btn-green');
-        window.scrollTo({top: 0, behavior: 'smooth'});
+        document.getElementById('editIdx').value = idx; document.getElementById('pType').value = p.type; document.getElementById('pName').value = p.name;
+        document.getElementById('pBranch').value = p.branch; document.getElementById('pDept').value = p.dept; document.getElementById('pContractVat').value = window.nf(p.contractVat);
+        document.getElementById('pCostPercent').value = p.costPercent; document.getElementById('pTotalDist').value = p.totalDist;
+        document.getElementById('submitBtn').innerText = "อัปเดตข้อมูล"; document.getElementById('submitBtn').classList.replace('btn-blue', 'btn-green'); window.scrollTo({top: 0, behavior: 'smooth'});
     }
 
     window.updateProjectDetail = function(pi, field, val) {
-        if (field === 'contractVat') {
-            val = window.unformat(val);
-            projects[pi].contractVat = val;
-            projects[pi].contractNoVat = val / 1.07;
-        } else if (field === 'costPercent' || field === 'totalDist') {
-            val = parseFloat(val) || 0;
-            projects[pi][field] = val;
-        } else {
-            projects[pi][field] = val;
-        }
+        if (field === 'contractVat') { val = window.unformat(val); projects[pi].contractVat = val; projects[pi].contractNoVat = val / 1.07;
+        } else if (field === 'costPercent' || field === 'totalDist') { val = parseFloat(val) || 0; projects[pi][field] = val;
+        } else { projects[pi][field] = val; }
         projects[pi].targetCost = projects[pi].contractNoVat * (projects[pi].costPercent / 100);
-        if (projects[pi].type === 'normal' && projects[pi].totalDist > 0) {
-            projects[pi].routes.forEach(r => { r.initialBudget = (r.dist / projects[pi].totalDist) * projects[pi].targetCost; });
-        }
+        if (projects[pi].type === 'normal' && projects[pi].totalDist > 0) { projects[pi].routes.forEach(r => { r.initialBudget = (r.dist / projects[pi].totalDist) * projects[pi].targetCost; }); }
         save();
     }
 
     window.addRouteInline = function(pi) {
-        const name = document.getElementById(`newRName-${pi}`).value;
-        const dist = document.getElementById(`newRDist-${pi}`).value;
+        const name = document.getElementById(`newRName-${pi}`).value; const dist = document.getElementById(`newRDist-${pi}`).value;
         if(!name) return;
         let budget = (projects[pi].totalDist > 0) ? (parseFloat(dist) / projects[pi].totalDist) * projects[pi].targetCost : 0;
         projects[pi].routes.push({ name, dist: parseFloat(dist), initialBudget: budget, p1SelfVat: 0, p1SupVat: 0, p1EngVat: 0, compareA: 'p1Dist', compareB: 'p1Eng', status: routeStatuses[0], expenses: [] });
@@ -333,9 +313,7 @@
     }
 
     window.updateRouteInfo = function(pi, ri, field, val) {
-        if(field === 'dist') {
-            val = parseFloat(val) || 0;
-            projects[pi].routes[ri].dist = val;
+        if(field === 'dist') { val = parseFloat(val) || 0; projects[pi].routes[ri].dist = val;
             if(projects[pi].totalDist > 0) projects[pi].routes[ri].initialBudget = (val / projects[pi].totalDist) * projects[pi].targetCost;
         } else { projects[pi].routes[ri][field] = val; }
         save();
@@ -344,65 +322,46 @@
     window.updateP1 = function(pi, ri, field, val) { projects[pi].routes[ri][field] = window.unformat(val); save(); }
     window.updateCompare = function(pi, ri, field, val) { projects[pi].routes[ri][field] = val; save(); }
 
-    // ฟังก์ชันเพิ่มค่าใช้จ่าย (คำนวณวันกำหนดชำระอัตโนมัติ)
     window.addExpense = function(pi, ri) {
         const date = document.getElementById(`expDate-${pi}-${ri}`).value || new Date().toISOString().split('T')[0];
         const cat = document.getElementById(`cat-${pi}-${ri}`).value;
         const payee = document.getElementById(`payee-${pi}-${ri}`).value;
+        const from = document.getElementById(`from-${pi}-${ri}`).value;
         const amt = window.unformat(document.getElementById(`amt-${pi}-${ri}`).value);
         const remark = document.getElementById(`rem-${pi}-${ri}`).value; 
         const status = document.getElementById(`status-${pi}-${ri}`).value; 
 
-        // คำนวณวันครบกำหนดชำระ (+45 วัน) หากเป็น "ค่าคอนกรีต"
         let dueDate = "";
         if (cat === "ค่าคอนกรีต") {
-            let d = new Date(date);
-            d.setDate(d.getDate() + 45);
-            dueDate = d.toISOString().split('T')[0];
+            let d = new Date(date); d.setDate(d.getDate() + 45); dueDate = d.toISOString().split('T')[0];
         }
 
         if(amt > 0 && payee) {
-            projects[pi].routes[ri].expenses.push({ date, cat, payee, amt, status, remark, dueDate });
+            projects[pi].routes[ri].expenses.push({ date, cat, payee, from, amt, status, remark, dueDate });
             save();
-            document.getElementById(`payee-${pi}-${ri}`).value = '';
-            document.getElementById(`amt-${pi}-${ri}`).value = '';
-            document.getElementById(`rem-${pi}-${ri}`).value = '';
+            document.getElementById(`payee-${pi}-${ri}`).value = ''; document.getElementById(`amt-${pi}-${ri}`).value = ''; document.getElementById(`rem-${pi}-${ri}`).value = '';
             document.getElementById(`payee-${pi}-${ri}`).focus();
         }
     }
 
-    // ฟังก์ชันอัปเดตข้อมูลในตาราง
     window.updateExp = function(pi, ri, ei, field, val) { 
         if(field === 'amt') val = window.unformat(val); 
         projects[pi].routes[ri].expenses[ei][field] = val; 
-        
-        // หากเปลี่ยนวันที่ หรือเปลี่ยนหมวดหมู่ ให้คำนวณ dueDate ใหม่
         let exp = projects[pi].routes[ri].expenses[ei];
         if ((field === 'cat' || field === 'date') && exp.cat === 'ค่าคอนกรีต') {
-            if (exp.date) {
-                let d = new Date(exp.date);
-                d.setDate(d.getDate() + 45);
-                exp.dueDate = d.toISOString().split('T')[0];
-            }
-        } else if (field === 'cat' && exp.cat !== 'ค่าคอนกรีต') {
-            exp.dueDate = ""; // ล้างค่าออกถ้าเปลี่ยนเป็นหมวดอื่น
-        }
-
+            if (exp.date) { let d = new Date(exp.date); d.setDate(d.getDate() + 45); exp.dueDate = d.toISOString().split('T')[0]; }
+        } else if (field === 'cat' && exp.cat !== 'ค่าคอนกรีต') { exp.dueDate = ""; }
         save(); 
     }
 
     window.addHandover = function(pi) {
-        const count = document.getElementById(`hoCount-${pi}`).value;
-        const checkboxes = document.querySelectorAll(`.hoCheck-${pi}:checked`);
+        const count = document.getElementById(`hoCount-${pi}`).value; const checkboxes = document.querySelectorAll(`.hoCheck-${pi}:checked`);
         if(!count || checkboxes.length === 0) return;
-        let selectedRoutes = [];
-        let totalP1 = 0;
+        let selectedRoutes = []; let totalP1 = 0;
         checkboxes.forEach(cb => {
-            const ri = parseInt(cb.value);
-            const r = projects[pi].routes[ri];
+            const ri = parseInt(cb.value); const r = projects[pi].routes[ri];
             selectedRoutes.push(r.name);
-            let curP1 = r.p1EngVat > 0 ? r.p1EngVat : (r.p1SupVat > 0 ? r.p1SupVat : (r.p1SelfVat > 0 ? r.p1SelfVat : 0));
-            totalP1 += curP1;
+            let curP1 = r.p1EngVat > 0 ? r.p1EngVat : (r.p1SupVat > 0 ? r.p1SupVat : (r.p1SelfVat > 0 ? r.p1SelfVat : 0)); totalP1 += curP1;
         });
         if(!projects[pi].handovers) projects[pi].handovers = [];
         projects[pi].handovers.push({ date: new Date().toISOString().split('T')[0], count: count, routes: selectedRoutes.join(', '), totalP1: totalP1 });
@@ -410,33 +369,41 @@
     }
 
     window.updateHandover = function(pi, hi, field, val) { projects[pi].handovers[hi][field] = field === 'totalP1' ? window.unformat(val) : val; save(); }
-
-    window.deleteProject = function(pi) { 
-        if(confirm("ยืนยันการลบโครงการนี้?")) { 
-            projects.splice(pi, 1); 
-            activeProjectIndex = -1; 
-            save(); 
-        } 
-    }
+    window.deleteProject = function(pi) { if(confirm("ยืนยันการลบโครงการนี้?")) { projects.splice(pi, 1); activeProjectIndex = -1; save(); } }
     window.deleteRoute = function(pi, ri) { if(confirm("ยืนยันการลบเส้นทางซอยนี้?")) { projects[pi].routes.splice(ri, 1); window.backToProject(); } }
     window.deleteExp = function(pi, ri, ei) { if(confirm("ยืนยันการลบรายการจ่ายนี้?")) { projects[pi].routes[ri].expenses.splice(ei, 1); save(); } }
     window.deleteHandover = function(pi, hi) { if(confirm("ยืนยันการลบข้อมูลส่งมอบงาน?")) { projects[pi].handovers.splice(hi, 1); save(); } }
 
     function render() {
         const container = document.getElementById('appContainer');
-        if (activeProjectIndex === -1) {
-            container.innerHTML = renderLevel1_Dashboard();
-        } else if (activeRouteIndex === -1) {
-            container.innerHTML = renderLevel2_Project(activeProjectIndex);
-        } else {
-            container.innerHTML = renderLevel3_Route(activeProjectIndex, activeRouteIndex);
-        }
+        if (activeProjectIndex === -1) container.innerHTML = renderLevel1_Dashboard();
+        else if (activeRouteIndex === -1) container.innerHTML = renderLevel2_Project(activeProjectIndex);
+        else container.innerHTML = renderLevel3_Route(activeProjectIndex, activeRouteIndex);
         updateUndoRedoUI();
     }
 
-    // --- ส่วนแสดงผลหน้าต่างๆ ---
-
+    // --- ส่วนแสดงผลหน้า 1 Dashboard ---
     function renderLevel1_Dashboard() {
+        // ประมวลผลแจ้งเตือนและคิวค่าคอนกรีต
+        let concreteList = [];
+        let today = new Date();
+        today.setHours(0,0,0,0);
+
+        projects.forEach((p, pi) => {
+            p.routes.forEach((r, ri) => {
+                r.expenses.forEach((e, ei) => {
+                    if(e.cat === 'ค่าคอนกรีต' && e.status === 'เตรียมจ่าย' && e.dueDate) {
+                         let dDate = new Date(e.dueDate);
+                         let diffTime = dDate - today;
+                         let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                         concreteList.push({pName: p.name, rName: r.name, amt: e.amt, dueDate: e.dueDate, diffDays: diffDays, pi, ri});
+                    }
+                });
+            });
+        });
+        concreteList.sort((a,b) => a.diffDays - b.diffDays); // เรียงจากดิวใกล้สุดไปไกลสุด
+        let urgentList = concreteList.filter(c => c.diffDays <= 7); // กรองเฉพาะใกล้ดิวใน 7 วัน หรือเกินกำหนด
+
         let html = `
             <div class="card" style="border-top: 5px solid var(--dark);">
                 <h3 style="margin-top:0; font-size:20px;">➕ สร้างโครงการใหม่</h3>
@@ -457,8 +424,48 @@
                     <div style="align-self: end;"><button class="btn-blue" id="submitBtn" onclick="window.saveProjectForm()">สร้างโครงการ</button></div>
                 </div>
             </div>
+        `;
+
+        // แสดงแจ้งเตือน 7 วัน ถ้ามีรายการด่วน
+        if(urgentList.length > 0) {
+            html += `
+                <div class="alert-box">
+                    <h4 style="margin-top:0; color: var(--danger); font-size:18px;">⚠️ แจ้งเตือน: มีบิลค่าคอนกรีตใกล้ถึงกำหนดชำระใน 7 วัน (${urgentList.length} รายการ)</h4>
+                    <ul style="margin-bottom:0; padding-left: 20px; font-size:16px;">
+                        ${urgentList.map(c => `<li style="margin-bottom:5px;"><b>${c.pName}</b> <span style="color:#666;">(ซอย: ${c.rName})</span> - ยอดชำระ <span style="font-weight:bold; color:var(--dark);">${window.nf(c.amt)} บาท</span> <span style="color:${c.diffDays < 0 ? 'red':'#d35400'}; font-weight:bold;">(${c.diffDays < 0 ? '🔴 เลยกำหนดมาแล้ว ' + Math.abs(c.diffDays) + ' วัน' : '🟡 อีก ' + c.diffDays + ' วันครบกำหนด'})</span> <span class="link-text" style="font-size:14px; margin-left:10px;" onclick="window.openRouteLevel(${c.pi}, ${c.ri})">[ดูรายละเอียด]</span></li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        // แสดงกล่อง Dropdown เมนูคุมค่าคอนกรีตทั้งหมด
+        html += `
+            <div class="card" style="border-top: 5px solid #d35400; margin-bottom: 20px;">
+                <h3 style="margin-top:0; color: #d35400; display:flex; justify-content:space-between; cursor:pointer;" onclick="let p = document.getElementById('concretePanel'); p.style.display = p.style.display === 'none' ? 'block' : 'none'">
+                    <span>🚚 ตารางคุมยอดครบกำหนดชำระค่าคอนกรีตทั้งหมด (${concreteList.length} รายการรอชำระ)</span>
+                    <span style="font-size:14px; background:#fdf2e9; padding:4px 10px; border-radius:20px;">คลิกเพื่อเปิด/ปิด ▼</span>
+                </h3>
+                <div id="concretePanel" style="display:none; margin-top:15px;">
+                    <table class="exp-table">
+                        <thead style="background:#fdf2e9;"><tr><th>วันที่ครบกำหนด</th><th>นับถอยหลัง</th><th>โครงการ</th><th>เส้นทางซอย (คลิกเพื่อเปิด)</th><th>ยอดรอชำระ</th></tr></thead>
+                        <tbody>
+                            ${concreteList.length > 0 ? concreteList.map(c => `
+                                <tr>
+                                    <td style="font-weight:bold;">${c.dueDate}</td>
+                                    <td style="color:${c.diffDays <= 7 ? 'red' : 'green'}; font-weight:bold;">${c.diffDays < 0 ? 'เลยกำหนด ' + Math.abs(c.diffDays) + ' วัน' : 'อีก ' + c.diffDays + ' วัน'}</td>
+                                    <td>${c.pName}</td>
+                                    <td><span class="link-text" onclick="window.openRouteLevel(${c.pi}, ${c.ri})">📍 ${c.rName}</span></td>
+                                    <td style="color:var(--primary); font-weight:bold; font-size:16px;">${window.nf(c.amt)}</td>
+                                </tr>
+                            `).join('') : '<tr><td colspan="5" style="text-align:center; color:#999; padding:20px;">🎉 ไม่มีรายการค่าคอนกรีตรอชำระ (หรือจ่ายครบหมดแล้วค่ะ)</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
             <div class="dashboard-grid">
         `;
+
         if(projects.length === 0) { html += `<div style="grid-column: 1 / -1; text-align:center; padding: 40px; color:#999; font-size:18px;">ยังไม่มีข้อมูลโครงการ กรุณาสร้างโครงการใหม่ด้านบนค่ะ 👆</div>`; }
         projects.forEach((p, pi) => {
             let totalSpent = 0;
@@ -598,24 +605,17 @@
     }
 
     function renderLevel3_Route(pi, ri) {
-        const p = projects[pi];
-        const r = p.routes[ri];
+        const p = projects[pi]; const r = p.routes[ri];
         if(!p || !r) return '';
 
-        let baseP1Value = p.contractVat;
-        if(p.p1Base === 'novat') baseP1Value = p.contractNoVat;
-        if(p.p1Base === 'target') baseP1Value = p.targetCost;
-        
+        let baseP1Value = p.contractVat; if(p.p1Base === 'novat') baseP1Value = p.contractNoVat; if(p.p1Base === 'target') baseP1Value = p.targetCost;
         let p1Dist = p.totalDist > 0 ? (r.dist / p.totalDist) * baseP1Value : 0;
-        let p1Self = r.p1SelfVat || 0;
-        let p1Sup = r.p1SupVat || 0;
-        let p1Eng = r.p1EngVat || 0;
+        let p1Self = r.p1SelfVat || 0; let p1Sup = r.p1SupVat || 0; let p1Eng = r.p1EngVat || 0;
         let curP1 = p1Eng > 0 ? p1Eng : (p1Sup > 0 ? p1Sup : (p1Self > 0 ? p1Self : 0));
         let routeBudget = curP1 > 0 ? (curP1 / 1.07) * (p.costPercent / 100) : r.initialBudget;
         const spent = r.expenses.reduce((s, e) => s + e.amt, 0);
 
-        let catTotals = {};
-        categories.forEach(c => catTotals[c] = 0);
+        let catTotals = {}; categories.forEach(c => catTotals[c] = 0);
         r.expenses.forEach(e => { if(catTotals[e.cat] !== undefined) catTotals[e.cat] += e.amt; });
         
         let summaryHtml = `<span class="cat-badge ${window.currentFilterCat === 'ทั้งหมด' ? 'active-filter' : ''}" onclick="window.setExpenseFilter('ทั้งหมด')">🔍 ดูทั้งหมด</span>`;
@@ -627,10 +627,8 @@
         });
 
         let p1Dict = { 'p1Dist': p1Dist, 'p1Self': p1Self, 'p1Sup': p1Sup, 'p1Eng': p1Eng };
-        let valA = p1Dict[r.compareA || 'p1Dist'];
-        let valB = p1Dict[r.compareB || 'p1Eng'];
-        let diffBaht = valA - valB;
-        let diffPercent = valB > 0 ? (diffBaht / valB) * 100 : 0;
+        let valA = p1Dict[r.compareA || 'p1Dist']; let valB = p1Dict[r.compareB || 'p1Eng'];
+        let diffBaht = valA - valB; let diffPercent = valB > 0 ? (diffBaht / valB) * 100 : 0;
         let diffColor = diffBaht > 0 ? 'green' : (diffBaht < 0 ? 'red' : 'gray');
 
         let html = `
@@ -645,7 +643,7 @@
                     </div>
                     <div style="flex:1; display:flex; align-items:center; gap:10px;">
                         <span class="label" style="margin:0; white-space:nowrap;">สถานะงาน</span>
-                        <select style="border:1px solid #ddd; padding:8px; font-family:'Sarabun'; border-radius:4px; font-size:15px; width:100%;" onchange="window.updateRouteInfo(${pi}, ${ri}, 'status', this.value)">
+                        <select style="border:1px solid #ddd; padding:8px; font-family:'Sarabun'; border-radius:4px; font-size:15px; width:100%; color:var(--permit); font-weight:bold;" onchange="window.updateRouteInfo(${pi}, ${ri}, 'status', this.value)">
                             ${routeStatuses.map(s => `<option value="${s}" ${r.status===s?'selected':''}>${s}</option>`).join('')}
                         </select>
                     </div>
@@ -703,48 +701,55 @@
                     ${summaryHtml}
                 </div>
 
-                <div style="display:grid; grid-template-columns: 0.9fr 1.2fr 1.5fr 1.2fr 1fr 1.5fr auto; gap:10px; background:#f9f9f9; padding:15px; border-radius:8px; align-items:end; margin-bottom:15px; border:1px solid #eee;">
+                <div style="display:grid; grid-template-columns: 0.8fr 1fr 1fr 1.2fr 1fr 1fr 1fr auto; gap:8px; background:#f9f9f9; padding:15px; border-radius:8px; align-items:end; margin-bottom:15px; border:1px solid #eee;">
                     <div><span class="label">วันที่</span><input type="date" id="expDate-${pi}-${ri}" style="font-size:14px;"></div>
-                    <div><span class="label">หมวด</span><select id="cat-${pi}-${ri}" style="font-size:15px;">${categories.map(c => `<option value="${c}">${c}</option>`).join('')}</select></div>
-                    <div><span class="label">ผู้รับเงิน</span><input type="text" id="payee-${pi}-${ri}" placeholder="ผู้รับเงิน" onkeyup="if(event.key==='Enter') window.addExpense(${pi}, ${ri})" style="font-size:15px;"></div>
-                    <div><span class="label">จำนวนเงิน</span><input type="text" id="amt-${pi}-${ri}" oninput="window.formatInput(this)" placeholder="0.00" onkeyup="if(event.key==='Enter') window.addExpense(${pi}, ${ri})" style="font-size:15px; font-weight:bold;"></div>
-                    <div><span class="label">สถานะ</span><select id="status-${pi}-${ri}" style="font-size:15px;">${statuses.map(s => `<option value="${s}">${s}</option>`).join('')}</select></div>
-                    <div><span class="label">หมายเหตุ</span><input type="text" id="rem-${pi}-${ri}" placeholder="โน้ตเพิ่มเติม (ถ้ามี)" onkeyup="if(event.key==='Enter') window.addExpense(${pi}, ${ri})" style="font-size:15px;"></div>
-                    <button class="btn-blue" style="padding:10px 15px; font-size:15px;" onclick="window.addExpense(${pi}, ${ri})">💾 บันทึก</button>
+                    <div><span class="label">หมวด</span><select id="cat-${pi}-${ri}" style="font-size:14px;">${categories.map(c => `<option value="${c}">${c}</option>`).join('')}</select></div>
+                    <div><span class="label">รับเงิน</span><input type="text" id="payee-${pi}-${ri}" placeholder="ผู้รับ" onkeyup="if(event.key==='Enter') window.addExpense(${pi}, ${ri})" style="font-size:14px;"></div>
+                    <div>
+                        <span class="label">ผู้จ่าย (From) <span class="link-text" style="font-size:12px; margin-left:3px;" onclick="window.managePayers()">⚙️ตั้งค่า</span></span>
+                        <select id="from-${pi}-${ri}" style="font-size:14px;">${window.payerOptions.map(opt => `<option value="${opt}">${opt}</option>`).join('')}</select>
+                    </div>
+                    <div><span class="label">จำนวนเงิน</span><input type="text" id="amt-${pi}-${ri}" oninput="window.formatInput(this)" placeholder="0.00" onkeyup="if(event.key==='Enter') window.addExpense(${pi}, ${ri})" style="font-size:14px; font-weight:bold;"></div>
+                    <div><span class="label">สถานะ</span><select id="status-${pi}-${ri}" style="font-size:14px;">${statuses.map(s => `<option value="${s}">${s}</option>`).join('')}</select></div>
+                    <div><span class="label">หมายเหตุ</span><input type="text" id="rem-${pi}-${ri}" placeholder="โน้ต..." onkeyup="if(event.key==='Enter') window.addExpense(${pi}, ${ri})" style="font-size:14px;"></div>
+                    <button class="btn-blue" style="padding:10px 12px; font-size:14px;" onclick="window.addExpense(${pi}, ${ri})">💾 บันทึก</button>
                 </div>
 
                 <table class="exp-table">
                     <thead style="background:#f4f7f6;">
                         <tr>
                             <th style="width:9%">วันที่</th>
-                            <th style="width:12%">หมวด</th>
-                            <th style="width:17%">ผู้รับเงิน</th>
-                            <th style="width:12%">จำนวนเงิน</th>
+                            <th style="width:10%">หมวด</th>
+                            <th style="width:14%">ผู้รับเงิน</th>
+                            <th style="width:12%">ผู้จ่าย (From)</th>
+                            <th style="width:10%">ยอดเงิน</th>
                             <th style="width:12%">สถานะ</th>
                             <th style="width:10%">กำหนดชำระ</th>
-                            <th style="width:23%">หมายเหตุ</th>
-                            <th style="width:5%; text-align:center;">ลบ</th>
+                            <th style="width:19%">หมายเหตุ</th>
+                            <th style="width:4%; text-align:center;">ลบ</th>
                         </tr>
                     </thead>
                     <tbody>${r.expenses.map((e, ei) => {
                         if (window.currentFilterCat !== 'ทั้งหมด' && e.cat !== window.currentFilterCat) return '';
                         
-                        // ระบบคำนวณวันครบกำหนดชำระ (+45 วัน) ย้อนหลังสำหรับข้อมูลเก่า
                         let dueDateHtml = `<span style="color:#ccc; display:block; text-align:center;">-</span>`;
                         if (e.cat === 'ค่าคอนกรีต') {
-                            if (!e.dueDate && e.date) {
-                                let d = new Date(e.date);
-                                d.setDate(d.getDate() + 45);
-                                e.dueDate = d.toISOString().split('T')[0];
-                            }
+                            if (!e.dueDate && e.date) { let d = new Date(e.date); d.setDate(d.getDate() + 45); e.dueDate = d.toISOString().split('T')[0]; }
                             dueDateHtml = `<input type="date" class="table-input" style="color:#d35400; font-weight:bold;" value="${e.dueDate || ''}" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'dueDate', this.value)">`;
                         }
+
+                        // เผื่อรายการเก่าที่ยังไม่มี e.from
+                        let currentFrom = e.from || window.payerOptions[0];
 
                         return `
                         <tr>
                             <td><input type="date" class="table-input" value="${e.date}" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'date', this.value)"></td>
                             <td><select class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'cat', this.value)">${categories.map(c => `<option value="${c}" ${e.cat===c?'selected':''}>${c}</option>`).join('')}</select></td>
                             <td><textarea class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'payee', this.value)" style="resize:vertical; min-height:42px; line-height:1.4;">${e.payee}</textarea></td>
+                            <td><select class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'from', this.value)">
+                                ${window.payerOptions.includes(currentFrom) ? '' : `<option value="${currentFrom}">${currentFrom}</option>`}
+                                ${window.payerOptions.map(opt => `<option value="${opt}" ${currentFrom===opt?'selected':''}>${opt}</option>`).join('')}
+                            </select></td>
                             <td><input type="text" class="table-input" value="${window.nf(e.amt)}" oninput="window.formatInput(this)" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'amt', this.value)" style="font-weight:bold; color:var(--primary); font-size:15px;"></td>
                             <td><select class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'status', this.value)">${statuses.map(s => `<option value="${s}" ${e.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
                             <td>${dueDateHtml}</td>
