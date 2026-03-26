@@ -62,7 +62,6 @@
         .table-input:hover { border: 1px solid #ddd; background: #fff; border-radius: 4px; }
         .table-input:focus { border: 1px solid var(--primary); background: #fff; outline: none; border-radius: 4px; }
         
-        /* สไตล์สำหรับปุ่มฟิลเตอร์หมวดหมู่ */
         .cat-badge { background: #fff; padding: 6px 15px; border-radius: 20px; border: 1px solid #bde0ec; color: var(--primary); font-size: 13px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: inline-block; font-weight: bold; cursor: pointer; transition: all 0.2s ease; }
         .cat-badge:hover { background: #e8f4f8; transform: translateY(-2px); }
         .active-filter { background: var(--primary); color: white; border-color: var(--dark); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
@@ -134,7 +133,7 @@
     let activeProjectIndex = -1;
     let activeRouteIndex = -1;
     
-    // ตัวแปรเก็บสถานะว่ากำลังเลือกดูฟิลเตอร์ค่าใช้จ่ายหมวดไหนอยู่
+    // ตัวแปรเก็บสถานะฟิลเตอร์
     window.currentFilterCat = 'ทั้งหมด';
 
     window.onload = function() {
@@ -227,23 +226,22 @@
     window.unformat = function(str) { return parseFloat(str.toString().replace(/,/g, '')) || 0; }
     window.nf = function(num) { return Number(num).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
-    // ฟังก์ชันจัดการคลิกฟิลเตอร์
     window.setExpenseFilter = function(cat) {
         window.currentFilterCat = cat;
-        render(); // รีโหลดหน้าจอเพื่อให้ตารางอัปเดต
+        render();
     }
 
     window.openProject = function(pi) {
         activeProjectIndex = pi;
         activeRouteIndex = -1;
-        window.currentFilterCat = 'ทั้งหมด'; // ล้างฟิลเตอร์เมื่อเปลี่ยนหน้า
+        window.currentFilterCat = 'ทั้งหมด';
         render();
         window.scrollTo({top: 0, behavior: 'smooth'});
     }
 
     window.openRoute = function(ri) {
         activeRouteIndex = ri;
-        window.currentFilterCat = 'ทั้งหมด'; // ล้างฟิลเตอร์เมื่อเข้าหน้าซอยใหม่
+        window.currentFilterCat = 'ทั้งหมด';
         render();
         window.scrollTo({top: 0, behavior: 'smooth'});
     }
@@ -346,13 +344,25 @@
     window.updateP1 = function(pi, ri, field, val) { projects[pi].routes[ri][field] = window.unformat(val); save(); }
     window.updateCompare = function(pi, ri, field, val) { projects[pi].routes[ri][field] = val; save(); }
 
+    // ฟังก์ชันเพิ่มค่าใช้จ่าย (คำนวณวันกำหนดชำระอัตโนมัติ)
     window.addExpense = function(pi, ri) {
         const date = document.getElementById(`expDate-${pi}-${ri}`).value || new Date().toISOString().split('T')[0];
+        const cat = document.getElementById(`cat-${pi}-${ri}`).value;
         const payee = document.getElementById(`payee-${pi}-${ri}`).value;
         const amt = window.unformat(document.getElementById(`amt-${pi}-${ri}`).value);
         const remark = document.getElementById(`rem-${pi}-${ri}`).value; 
+        const status = document.getElementById(`status-${pi}-${ri}`).value; 
+
+        // คำนวณวันครบกำหนดชำระ (+45 วัน) หากเป็น "ค่าคอนกรีต"
+        let dueDate = "";
+        if (cat === "ค่าคอนกรีต") {
+            let d = new Date(date);
+            d.setDate(d.getDate() + 45);
+            dueDate = d.toISOString().split('T')[0];
+        }
+
         if(amt > 0 && payee) {
-            projects[pi].routes[ri].expenses.push({ date, cat: document.getElementById(`cat-${pi}-${ri}`).value, payee, amt, status: document.getElementById(`status-${pi}-${ri}`).value, remark: remark });
+            projects[pi].routes[ri].expenses.push({ date, cat, payee, amt, status, remark, dueDate });
             save();
             document.getElementById(`payee-${pi}-${ri}`).value = '';
             document.getElementById(`amt-${pi}-${ri}`).value = '';
@@ -361,9 +371,23 @@
         }
     }
 
+    // ฟังก์ชันอัปเดตข้อมูลในตาราง
     window.updateExp = function(pi, ri, ei, field, val) { 
         if(field === 'amt') val = window.unformat(val); 
         projects[pi].routes[ri].expenses[ei][field] = val; 
+        
+        // หากเปลี่ยนวันที่ หรือเปลี่ยนหมวดหมู่ ให้คำนวณ dueDate ใหม่
+        let exp = projects[pi].routes[ri].expenses[ei];
+        if ((field === 'cat' || field === 'date') && exp.cat === 'ค่าคอนกรีต') {
+            if (exp.date) {
+                let d = new Date(exp.date);
+                d.setDate(d.getDate() + 45);
+                exp.dueDate = d.toISOString().split('T')[0];
+            }
+        } else if (field === 'cat' && exp.cat !== 'ค่าคอนกรีต') {
+            exp.dueDate = ""; // ล้างค่าออกถ้าเปลี่ยนเป็นหมวดอื่น
+        }
+
         save(); 
     }
 
@@ -409,6 +433,8 @@
         }
         updateUndoRedoUI();
     }
+
+    // --- ส่วนแสดงผลหน้าต่างๆ ---
 
     function renderLevel1_Dashboard() {
         let html = `
@@ -592,7 +618,6 @@
         categories.forEach(c => catTotals[c] = 0);
         r.expenses.forEach(e => { if(catTotals[e.cat] !== undefined) catTotals[e.cat] += e.amt; });
         
-        // สร้างปุ่มฟิลเตอร์หมวดหมู่
         let summaryHtml = `<span class="cat-badge ${window.currentFilterCat === 'ทั้งหมด' ? 'active-filter' : ''}" onclick="window.setExpenseFilter('ทั้งหมด')">🔍 ดูทั้งหมด</span>`;
         categories.forEach(c => {
             if(catTotals[c] > 0) {
@@ -690,12 +715,31 @@
 
                 <table class="exp-table">
                     <thead style="background:#f4f7f6;">
-                        <tr><th style="width:10%">วันที่</th><th style="width:14%">หมวด</th><th style="width:20%">ผู้รับเงิน</th><th style="width:14%">จำนวนเงิน</th><th style="width:14%">สถานะ</th><th style="width:23%">หมายเหตุ</th><th style="width:5%; text-align:center;">ลบ</th></tr>
+                        <tr>
+                            <th style="width:9%">วันที่</th>
+                            <th style="width:12%">หมวด</th>
+                            <th style="width:17%">ผู้รับเงิน</th>
+                            <th style="width:12%">จำนวนเงิน</th>
+                            <th style="width:12%">สถานะ</th>
+                            <th style="width:10%">กำหนดชำระ</th>
+                            <th style="width:23%">หมายเหตุ</th>
+                            <th style="width:5%; text-align:center;">ลบ</th>
+                        </tr>
                     </thead>
                     <tbody>${r.expenses.map((e, ei) => {
-                        // เช็คฟิลเตอร์ ถ้าไม่ใช่ 'ทั้งหมด' และหมวดหมู่ไม่ตรงกับที่กดเลือก ให้ซ่อนบรรทัดนี้ไปเลยค่ะ
                         if (window.currentFilterCat !== 'ทั้งหมด' && e.cat !== window.currentFilterCat) return '';
                         
+                        // ระบบคำนวณวันครบกำหนดชำระ (+45 วัน) ย้อนหลังสำหรับข้อมูลเก่า
+                        let dueDateHtml = `<span style="color:#ccc; display:block; text-align:center;">-</span>`;
+                        if (e.cat === 'ค่าคอนกรีต') {
+                            if (!e.dueDate && e.date) {
+                                let d = new Date(e.date);
+                                d.setDate(d.getDate() + 45);
+                                e.dueDate = d.toISOString().split('T')[0];
+                            }
+                            dueDateHtml = `<input type="date" class="table-input" style="color:#d35400; font-weight:bold;" value="${e.dueDate || ''}" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'dueDate', this.value)">`;
+                        }
+
                         return `
                         <tr>
                             <td><input type="date" class="table-input" value="${e.date}" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'date', this.value)"></td>
@@ -703,6 +747,7 @@
                             <td><textarea class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'payee', this.value)" style="resize:vertical; min-height:42px; line-height:1.4;">${e.payee}</textarea></td>
                             <td><input type="text" class="table-input" value="${window.nf(e.amt)}" oninput="window.formatInput(this)" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'amt', this.value)" style="font-weight:bold; color:var(--primary); font-size:15px;"></td>
                             <td><select class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'status', this.value)">${statuses.map(s => `<option value="${s}" ${e.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
+                            <td>${dueDateHtml}</td>
                             <td><textarea class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'remark', this.value)" placeholder="เพิ่มหมายเหตุ..." style="resize:vertical; min-height:42px; line-height:1.4;">${e.remark || ''}</textarea></td>
                             <td style="text-align:center; vertical-align:middle;"><button onclick="window.deleteExp(${pi}, ${ri}, ${ei})" style="color:red; border:none; background:none; cursor:pointer; font-size:16px; font-weight:bold;">X</button></td>
                         </tr>`;
