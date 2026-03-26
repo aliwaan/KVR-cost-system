@@ -12,6 +12,11 @@
         
         #loginOverlay { position: fixed; inset: 0; background: var(--dark); display: flex; justify-content: center; align-items: center; z-index: 1000; }
         #loadingOverlay { position: fixed; inset: 0; background: rgba(255,255,255,0.95); display: none; justify-content: center; align-items: center; z-index: 2000; flex-direction: column; }
+        
+        /* สไตล์สำหรับหน้าต่างตั้งค่าที่เนียนไปกับเว็บ */
+        #payerModalOverlay { position: fixed; inset: 0; background: rgba(44, 62, 80, 0.85); display: none; justify-content: center; align-items: center; z-index: 3000; backdrop-filter: blur(3px); }
+        .modal-box { background: white; padding: 30px; border-radius: 12px; width: 450px; max-width: 90%; box-shadow: 0 15px 30px rgba(0,0,0,0.2); }
+        
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom:15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
@@ -74,6 +79,21 @@
 </head>
 <body>
 
+<div id="payerModalOverlay">
+    <div class="modal-box">
+        <h3 style="margin-top:0; color:var(--dark); font-size:22px;">⚙️ ตั้งค่ารายชื่อ "ผู้จ่ายเงิน" (From)</h3>
+        <p style="color:#666; font-size:15px; margin-bottom:15px;">
+            พิมพ์รายชื่อโดยคั่นด้วยเครื่องหมายลูกน้ำ ( , )<br>
+            <span style="font-size:13px; color:var(--primary);">ตัวอย่าง: เงินบริษัท, คุณว่าน, รัน</span>
+        </p>
+        <textarea id="payerInputText" rows="4" style="font-size:16px; line-height:1.5; resize:vertical; margin-bottom:20px;"></textarea>
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+            <button class="btn-history" style="padding:10px 20px;" onclick="document.getElementById('payerModalOverlay').style.display='none'">ยกเลิก</button>
+            <button class="btn-green" style="padding:10px 20px;" onclick="window.savePayerModal()">💾 บันทึกการตั้งค่า</button>
+        </div>
+    </div>
+</div>
+
 <div id="loadingOverlay">
     <div class="spinner"></div>
     <h2 style="color:var(--primary); font-family:'Sarabun'; margin-bottom: 5px;">กำลังเชื่อมต่อฐานข้อมูล...</h2>
@@ -127,7 +147,6 @@
     const SECRET_PASS = "kvradmin";
     const categories = ["ค่าแรง", "ค่าคอนกรีต", "ค่า asbuilt", "ค่าช่างคุมงาน", "ค่า ผจ.", "ค่า Food support", "ค่าตรวจรับงาน"];
     const statuses = ["เตรียมจ่าย", "จ่ายแล้ว", "บันทึกลง flowaccount แล้ว"];
-    // อัปเดตสถานะใหม่ 3 สถานะ
     const routeStatuses = [
         "ยังไม่เริ่มงาน", "กำลังดำเนินการ", "รอใบอนุญาต", "ได้รับใบอนุญาตแล้ว", 
         "วางท่อเสร็จสิ้น", "วางท่อเสร็จสิ้น รอราคาP1", "วางท่อเสร็จสิ้น ปิดยอดค่าแรงแล้ว", 
@@ -136,7 +155,7 @@
     const branchOptions = ["แม้นศรี", "พญาไท", "นนทบุรี", "สมุทรปราการ", "พระโขนง", "ทุ่งมหาเมฆ", "ลาดพร้าว", "ประชาชื่น", "สุขสวัสดิ์", "ตากสิน", "บางกอกน้อย", "ภาษีเจริญ", "บางบัวทอง", "มหาสวัสดิ์", "สุวรรณภูมิ", "มีนบุรี", "แจ้งวัฒนะ", "บางเขน"];
 
     let projects = [];
-    window.payerOptions = ["เงินบริษัท", "เงินส่วนตัว"]; // ค่าเริ่มต้น
+    window.payerOptions = ["เงินบริษัท", "เงินส่วนตัว"]; 
     let historyStack = [];
     let historyIndex = 0;
     
@@ -242,7 +261,6 @@
     window.backToDashboard = function() { activeProjectIndex = -1; activeRouteIndex = -1; window.currentFilterCat = 'ทั้งหมด'; render(); window.scrollTo({top: 0, behavior: 'smooth'}); }
     window.backToProject = function() { activeRouteIndex = -1; window.currentFilterCat = 'ทั้งหมด'; render(); window.scrollTo({top: 0, behavior: 'smooth'}); }
 
-    // ฟังก์ชันวาร์ปจากหน้าแรกไปหน้าซอย
     window.openRouteLevel = function(pi, ri) {
         activeProjectIndex = pi;
         activeRouteIndex = ri;
@@ -251,16 +269,19 @@
         window.scrollTo({top: 0, behavior: 'smooth'});
     }
 
-    // ฟังก์ชันตั้งค่าผู้จ่ายเงิน (From)
-    window.managePayers = function() {
-        let current = window.payerOptions.join(", ");
-        let input = prompt("⚙️ ตั้งค่ารายชื่อ ผู้จ่ายเงิน (From)\nกรุณาพิมพ์ชื่อโดยคั่นด้วยเครื่องหมายลูกน้ำ ( , )", current);
-        if (input !== null) {
-            let newArray = input.split(",").map(s => s.trim()).filter(s => s !== "");
-            if (newArray.length === 0) newArray = ["เงินบริษัท"]; // เผื่อเผลอลบหมด
-            window.payerOptions = newArray;
-            save(); 
-        }
+    // ฟังก์ชันเปิด-ปิด หน้าต่างตั้งค่ารายชื่อเนียนๆ
+    window.openPayerModal = function() {
+        document.getElementById('payerInputText').value = window.payerOptions.join(', ');
+        document.getElementById('payerModalOverlay').style.display = 'flex';
+    }
+
+    window.savePayerModal = function() {
+        let input = document.getElementById('payerInputText').value;
+        let newArray = input.split(",").map(s => s.trim()).filter(s => s !== "");
+        if (newArray.length === 0) newArray = ["เงินบริษัท"]; 
+        window.payerOptions = newArray;
+        document.getElementById('payerModalOverlay').style.display = 'none';
+        save(); 
     }
 
     window.saveProjectForm = function() {
@@ -384,7 +405,6 @@
 
     // --- ส่วนแสดงผลหน้า 1 Dashboard ---
     function renderLevel1_Dashboard() {
-        // ประมวลผลแจ้งเตือนและคิวค่าคอนกรีต
         let concreteList = [];
         let today = new Date();
         today.setHours(0,0,0,0);
@@ -401,8 +421,8 @@
                 });
             });
         });
-        concreteList.sort((a,b) => a.diffDays - b.diffDays); // เรียงจากดิวใกล้สุดไปไกลสุด
-        let urgentList = concreteList.filter(c => c.diffDays <= 7); // กรองเฉพาะใกล้ดิวใน 7 วัน หรือเกินกำหนด
+        concreteList.sort((a,b) => a.diffDays - b.diffDays); 
+        let urgentList = concreteList.filter(c => c.diffDays <= 7);
 
         let html = `
             <div class="card" style="border-top: 5px solid var(--dark);">
@@ -426,7 +446,6 @@
             </div>
         `;
 
-        // แสดงแจ้งเตือน 7 วัน ถ้ามีรายการด่วน
         if(urgentList.length > 0) {
             html += `
                 <div class="alert-box">
@@ -438,7 +457,6 @@
             `;
         }
 
-        // แสดงกล่อง Dropdown เมนูคุมค่าคอนกรีตทั้งหมด
         html += `
             <div class="card" style="border-top: 5px solid #d35400; margin-bottom: 20px;">
                 <h3 style="margin-top:0; color: #d35400; display:flex; justify-content:space-between; cursor:pointer;" onclick="let p = document.getElementById('concretePanel'); p.style.display = p.style.display === 'none' ? 'block' : 'none'">
@@ -706,7 +724,7 @@
                     <div><span class="label">หมวด</span><select id="cat-${pi}-${ri}" style="font-size:14px;">${categories.map(c => `<option value="${c}">${c}</option>`).join('')}</select></div>
                     <div><span class="label">รับเงิน</span><input type="text" id="payee-${pi}-${ri}" placeholder="ผู้รับ" onkeyup="if(event.key==='Enter') window.addExpense(${pi}, ${ri})" style="font-size:14px;"></div>
                     <div>
-                        <span class="label">ผู้จ่าย (From) <span class="link-text" style="font-size:12px; margin-left:3px;" onclick="window.managePayers()">⚙️ตั้งค่า</span></span>
+                        <span class="label">ผู้จ่าย (From) <span class="link-text" style="font-size:12px; margin-left:3px;" onclick="window.openPayerModal()">⚙️ตั้งค่า</span></span>
                         <select id="from-${pi}-${ri}" style="font-size:14px;">${window.payerOptions.map(opt => `<option value="${opt}">${opt}</option>`).join('')}</select>
                     </div>
                     <div><span class="label">จำนวนเงิน</span><input type="text" id="amt-${pi}-${ri}" oninput="window.formatInput(this)" placeholder="0.00" onkeyup="if(event.key==='Enter') window.addExpense(${pi}, ${ri})" style="font-size:14px; font-weight:bold;"></div>
@@ -738,7 +756,6 @@
                             dueDateHtml = `<input type="date" class="table-input" style="color:#d35400; font-weight:bold;" value="${e.dueDate || ''}" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'dueDate', this.value)">`;
                         }
 
-                        // เผื่อรายการเก่าที่ยังไม่มี e.from
                         let currentFrom = e.from || window.payerOptions[0];
 
                         return `
