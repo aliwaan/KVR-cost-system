@@ -379,21 +379,45 @@
         save(); 
     }
 
-    window.addHandover = function(pi) {
-        const count = document.getElementById(`hoCount-${pi}`).value; const checkboxes = document.querySelectorAll(`.hoCheck-${pi}:checked`);
-        if(!count || checkboxes.length === 0) return;
+window.addHandover = function(pi) {
+        const count = document.getElementById(`hoCount-${pi}`).value; 
+        const prepCost = window.unformat(document.getElementById(`hoPrep-${pi}`).value) || 0;
+        const isFinal = document.getElementById(`hoFinal-${pi}`).checked;
+        const checkboxes = document.querySelectorAll(`.hoCheck-${pi}:checked`);
+        
+        if(!count && checkboxes.length === 0 && prepCost === 0) return;
+        
         let selectedRoutes = []; let totalP1 = 0;
         checkboxes.forEach(cb => {
             const ri = parseInt(cb.value); const r = projects[pi].routes[ri];
             selectedRoutes.push(r.name);
-            let curP1 = r.p1EngVat > 0 ? r.p1EngVat : (r.p1SupVat > 0 ? r.p1SupVat : (r.p1SelfVat > 0 ? r.p1SelfVat : 0)); totalP1 += curP1;
+            let curP1 = r.p1EngVat > 0 ? r.p1EngVat : (r.p1SupVat > 0 ? r.p1SupVat : (r.p1SelfVat > 0 ? r.p1SelfVat : 0)); 
+            totalP1 += curP1;
         });
+        
         if(!projects[pi].handovers) projects[pi].handovers = [];
-        projects[pi].handovers.push({ date: new Date().toISOString().split('T')[0], count: count, routes: selectedRoutes.join(', '), totalP1: totalP1 });
+        projects[pi].handovers.push({ 
+            date: new Date().toISOString().split('T')[0], 
+            count: count, 
+            routes: selectedRoutes.join(', '), 
+            totalP1: totalP1,
+            prepCost: prepCost,
+            isFinal: isFinal
+        });
         save();
     }
 
-    window.updateHandover = function(pi, hi, field, val) { projects[pi].handovers[hi][field] = field === 'totalP1' ? window.unformat(val) : val; save(); }
+    window.updateHandover = function(pi, hi, field, val) { 
+        if (field === 'totalP1' || field === 'prepCost') {
+            projects[pi].handovers[hi][field] = window.unformat(val);
+        } else if (field === 'isFinal') {
+            projects[pi].handovers[hi][field] = val;
+        } else {
+            projects[pi].handovers[hi][field] = val;
+        }
+        save(); 
+    }
+    
     window.deleteProject = function(pi) { if(confirm("ยืนยันการลบโครงการนี้?")) { projects.splice(pi, 1); activeProjectIndex = -1; save(); } }
     window.deleteRoute = function(pi, ri) { if(confirm("ยืนยันการลบเส้นทางซอยนี้?")) { projects[pi].routes.splice(ri, 1); window.backToProject(); } }
     window.deleteExp = function(pi, ri, ei) { if(confirm("ยืนยันการลบรายการจ่ายนี้?")) { projects[pi].routes[ri].expenses.splice(ei, 1); save(); } }
@@ -490,9 +514,25 @@
 
         if(projects.length === 0) { html += `<div style="grid-column: 1 / -1; text-align:center; padding: 40px; color:#999; font-size:18px;">ยังไม่มีข้อมูลโครงการ กรุณาสร้างโครงการใหม่ด้านบนค่ะ 👆</div>`; }
         projects.forEach((p, pi) => {
+            // คำนวณรายจ่าย
             let totalSpent = 0;
             p.routes.forEach(r => r.expenses.forEach(e => totalSpent += e.amt));
             let balance = p.targetCost - totalSpent;
+            
+            // คำนวณรายรับและเงินประกัน (วนลูปเรียงตามงวดส่งมอบ)
+            let totalBilledVat = 0;
+            let totalNet = 0;
+            let accumRet = 0;
+            (p.handovers || []).forEach(h => {
+                let prep = h.prepCost || 0;
+                let baseVat = (h.totalP1 || 0) + prep;
+                let curRet = h.isFinal ? 0 : baseVat * 0.10;
+                let retRet = h.isFinal ? accumRet : 0;
+                totalBilledVat += baseVat;
+                totalNet += (baseVat - curRet + retRet);
+                if (!h.isFinal) accumRet += curRet;
+            });
+
             html += `
                 <div class="folder-card ${p.type === 'openend' ? 'folder-openend' : ''}" onclick="window.openProject(${pi})">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -504,14 +544,20 @@
                     </div>
                     <div style="color:var(--permit); font-size:15px; margin-bottom:15px; font-weight:bold;">สาขา: ${p.branch || '-'} | กองงาน: ${p.dept || '-'}</div>
                     <div style="background:#f9f9f9; padding:15px; border-radius:8px; font-size:15px; border:1px solid #eee;">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                            <span>งบเป้าหมาย:</span><span style="font-weight:bold; color:var(--dark);">${window.nf(p.targetCost)}</span>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                            <span style="color:var(--dark);">รับสุทธิจากส่งงาน:</span><span style="font-weight:bold; color:#16a085;">${window.nf(totalNet)}</span>
                         </div>
-                        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                            <span>จ่ายไปแล้ว:</span><span style="font-weight:bold; color:var(--danger)">${window.nf(totalSpent)}</span>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:13px; border-bottom:1px dashed #ccc; padding-bottom:8px;">
+                            <span style="color:#666;">เทียบกับสัญญา (VAT):</span><span style="font-weight:bold; color:${totalBilledVat >= p.contractVat ? 'green':'red'}">${totalBilledVat >= p.contractVat ? '+' : ''}${window.nf(totalBilledVat - p.contractVat)}</span>
                         </div>
-                        <div style="display:flex; justify-content:space-between; border-top:1px dashed #ccc; padding-top:8px; margin-top:8px;">
-                            <span>คงเหลือรวม:</span><span style="font-weight:bold; font-size:16px; color:${balance < 0 ? 'red' : 'green'}">${window.nf(balance)}</span>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                            <span>งบเป้าหมาย (ต้นทุน):</span><span style="font-weight:bold; color:var(--dark);">${window.nf(p.targetCost)}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                            <span>จ่ายค่าใช้จ่ายไปแล้ว:</span><span style="font-weight:bold; color:var(--danger)">${window.nf(totalSpent)}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; border-top:1px solid #ddd; padding-top:5px; margin-top:5px;">
+                            <span>งบทุนคงเหลือ:</span><span style="font-weight:bold; font-size:16px; color:${balance < 0 ? 'red' : 'green'}">${window.nf(balance)}</span>
                         </div>
                     </div>
                     <div style="text-align:center; margin-top:15px; font-size:14px; color:#888; font-weight:bold;">
@@ -527,8 +573,25 @@
     function renderLevel2_Project(pi) {
         const p = projects[pi];
         if(!p) return '';
+        
+        // คำนวณรายจ่าย
         let totalSpent = 0;
         p.routes.forEach(r => r.expenses.forEach(e => totalSpent += e.amt));
+        
+        // คำนวณรายรับและเงินประกัน
+        let totalBilledVat = 0;
+        let totalNet = 0;
+        let accumRet = 0;
+        (p.handovers || []).forEach(h => {
+            let prep = h.prepCost || 0;
+            let baseVat = (h.totalP1 || 0) + prep;
+            let curRet = h.isFinal ? 0 : baseVat * 0.10;
+            let retRet = h.isFinal ? accumRet : 0;
+            totalBilledVat += baseVat;
+            totalNet += (baseVat - curRet + retRet);
+            if (!h.isFinal) accumRet += curRet;
+        });
+        let totalBilledNoVat = totalBilledVat / 1.07;
 
         let html = `
             <button class="btn-back" onclick="window.backToDashboard()">⬅️ กลับแฟ้มรวมโครงการ</button>
@@ -540,13 +603,25 @@
                     </select>
                     <input class="inline-input" style="color:var(--permit); font-size:18px; text-align:left; flex:1;" value="${p.dept}" onchange="window.updateProjectDetail(${pi}, 'dept', this.value)" placeholder="กองงาน (คลิกเพื่อแก้)">
                 </div>
-                <div class="summary-grid">
+                
+                <h4 style="margin:0 0 10px 0; color:var(--dark);">📉 สรุปงบต้นทุน (Cost)</h4>
+                <div class="summary-grid" style="margin-top:0;">
                     <div class="summary-item"><span class="label">รวมระยะทาง (เมตร)</span><input class="inline-input" style="font-size:18px; color:var(--dark);" value="${p.totalDist}" onchange="window.updateProjectDetail(${pi}, 'totalDist', this.value)"></div>
                     <div class="summary-item"><span class="label">สัญญา (VAT)</span><input class="inline-input" style="font-size:16px; color:var(--dark);" value="${window.nf(p.contractVat)}" oninput="window.formatInput(this)" onchange="window.updateProjectDetail(${pi}, 'contractVat', this.value)"></div>
                     <div class="summary-item"><span class="label">สัญญา (No VAT)</span><span class="val">${window.nf(p.contractNoVat)}</span></div>
                     <div class="summary-item"><span class="label">งบเป้าหมาย ( <input type="number" value="${p.costPercent}" style="width:45px; border:none; background:none; text-align:center; font-weight:bold; font-family:'Sarabun'; font-size:16px; color:var(--primary);" onchange="window.updateProjectDetail(${pi}, 'costPercent', this.value)"> %)</span><span class="val">${window.nf(p.targetCost)}</span></div>
                     <div class="summary-item"><span class="label">จ่ายสะสมทั้งโครงการ</span><span class="val" style="color:var(--danger)">${window.nf(totalSpent)}</span></div>
                     <div class="summary-item"><span class="label">คงเหลือทั้งโครงการ</span><span class="val" style="color:${(p.targetCost - totalSpent) < 0 ? 'red':'green'}">${window.nf(p.targetCost - totalSpent)}</span></div>
+                </div>
+
+                <h4 style="margin:20px 0 10px 0; color:#16a085;">📈 สรุปรายรับสุทธิ (Revenue)</h4>
+                <div class="summary-grid" style="margin-top:0; border-top:2px dashed #ccc; padding-top:15px;">
+                    <div class="summary-item" style="background:#e8f8f5; border-color:#1abc9c;"><span class="label">รับสุทธิจากส่งงาน (Net)</span><span class="val" style="color:#16a085; font-size:20px;">${window.nf(totalNet)}</span></div>
+                    <div class="summary-item"><span class="label">มูลค่างานรวม (P1+เตรียมงาน)</span><span class="val">${window.nf(totalBilledVat)}</span></div>
+                    <div class="summary-item"><span class="label">มูลค่างานรวม (No VAT)</span><span class="val">${window.nf(totalBilledNoVat)}</span></div>
+                    <div class="summary-item"><span class="label">เทียบสัญญา (รวม VAT)</span><span class="val" style="color:${totalBilledVat >= p.contractVat ? 'green':'red'}">${totalBilledVat >= p.contractVat ? '+' : ''}${window.nf(totalBilledVat - p.contractVat)}</span></div>
+                    <div class="summary-item"><span class="label">เทียบสัญญา (No VAT)</span><span class="val" style="color:${totalBilledNoVat >= p.contractNoVat ? 'green':'red'}">${totalBilledNoVat >= p.contractNoVat ? '+' : ''}${window.nf(totalBilledNoVat - p.contractNoVat)}</span></div>
+                    <div class="summary-item"><span class="label">ประกันผลงานที่ยังไม่คืน</span><span class="val" style="color:#d35400;">${window.nf(accumRet)}</span></div>
                 </div>
                 
                 <hr style="border:0; border-top:1px solid #eee; margin:25px 0;">
@@ -594,55 +669,91 @@
         });
         html += `
                 </div>
-            <div class="card" style="margin-top: 40px; background: #fdfefe; border: 1px solid #e0e6ed;">
-                    <h3 style="font-size:20px; color:#2c3e50; display:flex; align-items:center; gap:8px;">🚚 บันทึกส่งมอบงาน & ออกใบแจ้งหนี้รวม <span style="font-size:14px; color:#888; font-weight:normal;">(เลือกรวมหลายซอยได้)</span></h3>
-                    <div style="display:flex; gap:15px; align-items:end; margin-bottom:15px;">
-                        <div style="flex:1;"><span class="label">งวดที่ส่งมอบ</span><input type="text" id="hoCount-${pi}" placeholder="เช่น งวดที่ 1" onkeyup="if(event.key==='Enter') window.addHandover(${pi})" style="font-size:16px;"></div>
-                        <button class="btn-green" style="padding:12px 20px; font-size:16px;" onclick="window.addHandover(${pi})">💾 บันทึกส่งงาน</button>
+                <div class="card" style="margin-top: 40px; background: #fdfefe; border: 1px solid #e0e6ed;">
+                    <h3 style="font-size:20px; color:#2c3e50; display:flex; align-items:center; gap:8px;">🚚 บันทึกส่งมอบงาน & ออกใบแจ้งหนี้รวม</h3>
+                    
+                    <div style="display:flex; gap:15px; align-items:end; margin-bottom:15px; flex-wrap:wrap; background:#f0f7ff; padding:15px; border-radius:8px;">
+                        <div style="flex:1; min-width:120px;"><span class="label">งวดที่ส่งมอบ</span><input type="text" id="hoCount-${pi}" placeholder="เช่น งวดที่ 1" style="font-size:15px;"></div>
+                        <div style="flex:1; min-width:160px;"><span class="label">ค่าเตรียมงาน (รวม VAT)</span><input type="text" id="hoPrep-${pi}" placeholder="0.00" oninput="window.formatInput(this)" style="font-size:15px; color:#8e44ad; font-weight:bold;"></div>
+                        <div style="display:flex; align-items:center; background:#fff8e1; padding:10px 15px; border-radius:6px; border:1px solid #f39c12; height:43px; box-sizing:border-box;">
+                            <label style="cursor:pointer; font-weight:bold; color:#d35400; font-size:14px;"><input type="checkbox" id="hoFinal-${pi}"> 🚩 งวดสุดท้าย (รับคืนประกันผลงาน)</label>
+                        </div>
+                        <button class="btn-green" style="padding:12px 20px; font-size:15px; height:43px;" onclick="window.addHandover(${pi})">💾 บันทึกส่งงาน</button>
                     </div>
-                    <div style="font-size:15px; padding:15px; background:#f9f9f9; border-radius:8px; margin-bottom:15px; border:1px solid #eee;">
-                        <span class="label" style="margin-bottom:10px; font-size:15px; color:var(--dark);">☑️ ติ๊กเลือกเส้นทางที่ต้องการส่งมอบ (ระบบจะดึงยอด P1 มาบวกรวมและคำนวณภาษีให้อัตโนมัติ):</span>
+
+                    <div style="font-size:15px; padding:15px; background:#fff; border-radius:8px; margin-bottom:15px; border:1px dashed #ccc;">
+                        <span class="label" style="margin-bottom:10px; font-size:15px; color:var(--dark);">☑️ ติ๊กเลือกเส้นทางที่ต้องการส่งมอบ (ระบบจะดึงยอด P1 มาบวกรวมให้อัตโนมัติ):</span>
                         <div style="display:flex; flex-wrap:wrap; gap:12px;">
-                            ${p.routes.length > 0 ? p.routes.map((r, ri) => `<label style="background:#fff; padding:8px 12px; border-radius:6px; border:1px solid #ccc; cursor:pointer; font-weight:bold;"><input type="checkbox" class="hoCheck-${pi}" value="${ri}" style="width:auto;"> ${r.name}</label>`).join('') : '<span style="color:#999;">ยังไม่มีเส้นทางให้เลือก</span>'}
+                            ${p.routes.length > 0 ? p.routes.map((r, ri) => `<label style="background:#f9f9f9; padding:8px 12px; border-radius:6px; border:1px solid #ddd; cursor:pointer; font-weight:bold; font-size:14px;"><input type="checkbox" class="hoCheck-${pi}" value="${ri}" style="width:auto;"> ${r.name}</label>`).join('') : '<span style="color:#999;">ยังไม่มีเส้นทางให้เลือก</span>'}
                         </div>
                     </div>
+                    
                     <div style="overflow-x:auto;">
-                        <table class="exp-table" style="min-width: 900px;">
+                        <table class="exp-table" style="min-width: 1000px;">
                             <thead style="background:#eef2f7;">
                                 <tr>
-                                    <th style="width:12%">วันที่</th>
-                                    <th style="width:10%">งวดที่</th>
-                                    <th style="width:30%">เส้นทางที่ส่งมอบ</th>
-                                    <th style="width:18%; text-align:center;">P1 รวม (ปรับแก้ได้)</th>
-                                    <th style="width:12%; text-align:center; color:var(--danger);">หักประกัน (10%)</th>
-                                    <th style="width:13%; text-align:center; color:var(--secondary);">รับสุทธิ (Net)</th>
+                                    <th style="width:10%">วันที่</th>
+                                    <th style="width:9%">งวดที่</th>
+                                    <th style="width:25%">รายละเอียดซอย & สถานะงวด</th>
+                                    <th style="width:22%; text-align:center;">รายละเอียด P1 + เตรียมงาน</th>
+                                    <th style="width:14%; text-align:center; color:var(--danger);">หักประกัน (10%)</th>
+                                    <th style="width:15%; text-align:center; color:var(--secondary);">รับสุทธิ (Net)</th>
                                     <th style="width:5%; text-align:center;">ลบ</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${(p.handovers || []).map((h, hi) => {
-                                    // โลจิกคำนวณใบแจ้งหนี้
-                                    let totalVat = h.totalP1 || 0;
-                                    let totalNoVat = totalVat / 1.07;
-                                    let retention = totalVat * 0.10;
-                                    let vatAmt = totalVat - totalNoVat;
-                                    let net = totalVat - retention;
-                                    
-                                    return `
-                                    <tr>
-                                        <td style="vertical-align:top;"><input type="date" class="table-input" value="${h.date}" onchange="window.updateHandover(${pi}, ${hi}, 'date', this.value)"></td>
-                                        <td style="vertical-align:top;"><input type="text" class="table-input" value="${h.count}" onchange="window.updateHandover(${pi}, ${hi}, 'count', this.value)"></td>
-                                        <td style="vertical-align:top;"><textarea class="table-input" onchange="window.updateHandover(${pi}, ${hi}, 'routes', this.value)" style="width:100%; box-sizing:border-box; resize:vertical; min-height:60px; font-family:'Sarabun'; font-size:14px; line-height:1.4;">${h.routes}</textarea></td>
-                                        <td style="vertical-align:top;">
-                                            <input type="text" class="table-input" value="${window.nf(totalVat)}" oninput="window.formatInput(this)" onchange="window.updateHandover(${pi}, ${hi}, 'totalP1', this.value)" style="font-weight:bold; color:var(--primary); font-size:16px; text-align:center; margin-bottom:5px;">
-                                            <div style="font-size:12px; color:#666; text-align:center;">ไม่รวมภาษี: ${window.nf(totalNoVat)}</div>
-                                            <div style="font-size:12px; color:#d35400; text-align:center;">VAT (7%): ${window.nf(vatAmt)}</div>
-                                        </td>
-                                        <td style="vertical-align:top; font-weight:bold; color:var(--danger); text-align:center; padding-top:15px; font-size:15px;">- ${window.nf(retention)}</td>
-                                        <td style="vertical-align:top; font-weight:bold; color:var(--secondary); text-align:center; padding-top:15px; font-size:16px;">${window.nf(net)}</td>
-                                        <td style="vertical-align:top; text-align:center; padding-top:15px;"><button onclick="window.deleteHandover(${pi}, ${hi})" style="color:red; border:none; background:none; cursor:pointer; font-size:16px; font-weight:bold;">X</button></td>
-                                    </tr>
-                                `}).join('')}
+                                ${(() => {
+                                    let runtimeAccumRet = 0; // ตัวแปรวิ่งเก็บค่าประกันผลงานสะสม
+                                    return (p.handovers || []).map((h, hi) => {
+                                        let prep = h.prepCost || 0;
+                                        let baseVat = (h.totalP1 || 0) + prep;
+                                        let baseNoVat = baseVat / 1.07;
+                                        let curRet = h.isFinal ? 0 : baseVat * 0.10;
+                                        let retRet = h.isFinal ? runtimeAccumRet : 0;
+                                        let net = baseVat - curRet + retRet;
+                                        
+                                        let htmlRow = `
+                                        <tr>
+                                            <td style="vertical-align:top;"><input type="date" class="table-input" value="${h.date}" onchange="window.updateHandover(${pi}, ${hi}, 'date', this.value)"></td>
+                                            <td style="vertical-align:top;"><input type="text" class="table-input" value="${h.count}" onchange="window.updateHandover(${pi}, ${hi}, 'count', this.value)"></td>
+                                            <td style="vertical-align:top;">
+                                                <textarea class="table-input" onchange="window.updateHandover(${pi}, ${hi}, 'routes', this.value)" style="width:100%; box-sizing:border-box; resize:vertical; min-height:60px; font-family:'Sarabun'; font-size:14px; line-height:1.4; margin-bottom:8px;">${h.routes}</textarea>
+                                                <div style="background:#fff8e1; padding:5px 8px; border-radius:4px; border:1px dashed #f39c12;">
+                                                    <label style="font-size:13px; color:#d35400; font-weight:bold; cursor:pointer;">
+                                                        <input type="checkbox" ${h.isFinal ? 'checked' : ''} onchange="window.updateHandover(${pi}, ${hi}, 'isFinal', this.checked)"> 🚩 งวดสุดท้าย (คืนประกันผลงาน)
+                                                    </label>
+                                                </div>
+                                            </td>
+                                            <td style="vertical-align:top; padding-right:15px;">
+                                                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                                    <span style="font-size:13px; color:#666;">P1 รวมซอย:</span>
+                                                    <input type="text" class="table-input" value="${window.nf(h.totalP1 || 0)}" oninput="window.formatInput(this)" onchange="window.updateHandover(${pi}, ${hi}, 'totalP1', this.value)" style="font-weight:bold; color:var(--primary); font-size:14px; text-align:right; width:100px; padding:4px;">
+                                                </div>
+                                                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                                                    <span style="font-size:13px; color:#666;">ค่าเตรียมงาน:</span>
+                                                    <input type="text" class="table-input" value="${window.nf(prep)}" oninput="window.formatInput(this)" onchange="window.updateHandover(${pi}, ${hi}, 'prepCost', this.value)" style="font-weight:bold; color:#8e44ad; font-size:14px; text-align:right; width:100px; padding:4px;">
+                                                </div>
+                                                <div style="font-size:14px; font-weight:bold; color:var(--dark); text-align:right; background:#eee; padding:4px; border-radius:4px;">
+                                                    รวม VAT: ${window.nf(baseVat)}
+                                                </div>
+                                                <div style="font-size:12px; color:#666; text-align:right; margin-top:3px;">ไม่รวมภาษี: ${window.nf(baseNoVat)}</div>
+                                                <div style="font-size:12px; color:#d35400; text-align:right;">VAT (7%): ${window.nf(baseVat - baseNoVat)}</div>
+                                            </td>
+                                            <td style="vertical-align:top; text-align:center; padding-top:15px;">
+                                                ${h.isFinal ? 
+                                                    `<span style="color:#aaa; text-decoration:line-through;">- 0.00</span><br><span style="color:#27ae60; font-weight:bold; font-size:14px; display:inline-block; margin-top:5px; background:#e8f8f5; padding:4px 8px; border-radius:15px;">+ คืนสะสม<br>${window.nf(retRet)}</span>` 
+                                                    : `<span style="color:var(--danger); font-weight:bold; font-size:16px;">- ${window.nf(curRet)}</span>`
+                                                }
+                                            </td>
+                                            <td style="vertical-align:top; font-weight:bold; color:var(--secondary); text-align:center; padding-top:25px; font-size:18px;">${window.nf(net)}</td>
+                                            <td style="vertical-align:top; text-align:center; padding-top:25px;"><button onclick="window.deleteHandover(${pi}, ${hi})" style="color:red; border:none; background:none; cursor:pointer; font-size:16px; font-weight:bold;">X</button></td>
+                                        </tr>`;
+                                        
+                                        // บวกเงินประกันสะสมถ้าไม่ใช่งวดสุดท้าย
+                                        if (!h.isFinal) runtimeAccumRet += curRet;
+                                        return htmlRow;
+                                    }).join('');
+                                })()}
                             </tbody>
                         </table>
                     </div>
@@ -651,7 +762,6 @@
         `;
         return html;
     }
-
     function renderLevel3_Route(pi, ri) {
         const p = projects[pi]; const r = p.routes[ri];
         if(!p || !r) return '';
