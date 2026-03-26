@@ -7,7 +7,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #2980b9; --secondary: #27ae60; --danger: #e74c3c; --warning: #f39c12; --bg: #f4f7f6; --dark: #2c3e50; --permit: #8e44ad; }
-        /* ขยายขนาดฟอนต์พื้นฐานให้อ่านง่ายขึ้น */
         body { font-family: 'Sarabun', sans-serif; background-color: var(--bg); margin: 0; padding: 20px; font-size: 15px; }
         .container { max-width: 1550px; margin: auto; display: none; }
         
@@ -20,7 +19,6 @@
         .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border-top: 5px solid #ddd; }
         
         .label { font-size: 0.85em; color: #666; display: block; margin-bottom: 5px; font-weight: bold; }
-        /* ขยายตัวเลขยอดเงินให้ใหญ่และชัดขึ้น */
         .val { font-weight: bold; color: var(--primary); display: block; font-size: 17px; } 
         
         button { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; font-family: 'Sarabun'; transition: 0.2s; }
@@ -38,7 +36,6 @@
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
 
-        /* Dashboard Grid สำหรับโครงการและเส้นทาง */
         .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; margin-top: 20px; }
         .folder-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); cursor: pointer; border-top: 5px solid var(--primary); transition: transform 0.2s, box-shadow 0.2s; position: relative; display: flex; flex-direction: column; justify-content: space-between;}
         .folder-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.15); border-top: 5px solid var(--warning); }
@@ -65,7 +62,11 @@
         .table-input:hover { border: 1px solid #ddd; background: #fff; border-radius: 4px; }
         .table-input:focus { border: 1px solid var(--primary); background: #fff; outline: none; border-radius: 4px; }
         
-        .cat-badge { background: #fff; padding: 6px 12px; border-radius: 20px; border: 1px solid #bde0ec; color: var(--primary); font-size: 13px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: inline-block; font-weight: bold; }
+        /* สไตล์สำหรับปุ่มฟิลเตอร์หมวดหมู่ */
+        .cat-badge { background: #fff; padding: 6px 15px; border-radius: 20px; border: 1px solid #bde0ec; color: var(--primary); font-size: 13px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: inline-block; font-weight: bold; cursor: pointer; transition: all 0.2s ease; }
+        .cat-badge:hover { background: #e8f4f8; transform: translateY(-2px); }
+        .active-filter { background: var(--primary); color: white; border-color: var(--dark); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+        .active-filter:hover { background: #1f6391; }
     </style>
 </head>
 <body>
@@ -130,9 +131,11 @@
     let historyStack = [];
     let historyIndex = 0;
     
-    // State สำหรับควบคุมหน้าจอ (3 ระดับ)
     let activeProjectIndex = -1;
     let activeRouteIndex = -1;
+    
+    // ตัวแปรเก็บสถานะว่ากำลังเลือกดูฟิลเตอร์ค่าใช้จ่ายหมวดไหนอยู่
+    window.currentFilterCat = 'ทั้งหมด';
 
     window.onload = function() {
         const lastLogin = localStorage.getItem('kvr_session');
@@ -210,37 +213,37 @@
         if(btnRedo) btnRedo.disabled = (historyIndex >= historyStack.length - 1);
     }
 
-window.formatInput = function(el) {
-        // 1. กรองเอาเฉพาะตัวเลขและจุดทศนิยม (ห้ามพิมพ์ตัวอักษร)
+    window.formatInput = function(el) {
         let val = el.value.replace(/[^0-9.]/g, ''); 
-        
-        // 2. แยกส่วนจำนวนเต็มและทศนิยม
         let parts = val.split('.');
-        
-        // 3. ใส่ลูกน้ำ (,) ให้ส่วนจำนวนเต็มอัตโนมัติ
         let intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-        
-        // 4. ประกอบร่างกลับคืนมา
         if (parts.length > 1) {
-            // ถ้ามีทศนิยม จะล็อกให้พิมพ์ได้สูงสุด 2 ตำแหน่งค่ะ
             el.value = intPart + '.' + parts[1].substring(0, 2);
         } else {
             el.value = intPart;
         }
     }
+    
     window.unformat = function(str) { return parseFloat(str.toString().replace(/,/g, '')) || 0; }
     window.nf = function(num) { return Number(num).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
-    // --- ระบบนำทาง 3 ระดับ ---
+    // ฟังก์ชันจัดการคลิกฟิลเตอร์
+    window.setExpenseFilter = function(cat) {
+        window.currentFilterCat = cat;
+        render(); // รีโหลดหน้าจอเพื่อให้ตารางอัปเดต
+    }
+
     window.openProject = function(pi) {
         activeProjectIndex = pi;
         activeRouteIndex = -1;
+        window.currentFilterCat = 'ทั้งหมด'; // ล้างฟิลเตอร์เมื่อเปลี่ยนหน้า
         render();
         window.scrollTo({top: 0, behavior: 'smooth'});
     }
 
     window.openRoute = function(ri) {
         activeRouteIndex = ri;
+        window.currentFilterCat = 'ทั้งหมด'; // ล้างฟิลเตอร์เมื่อเข้าหน้าซอยใหม่
         render();
         window.scrollTo({top: 0, behavior: 'smooth'});
     }
@@ -248,17 +251,18 @@ window.formatInput = function(el) {
     window.backToDashboard = function() {
         activeProjectIndex = -1;
         activeRouteIndex = -1;
+        window.currentFilterCat = 'ทั้งหมด';
         render();
         window.scrollTo({top: 0, behavior: 'smooth'});
     }
 
     window.backToProject = function() {
         activeRouteIndex = -1;
+        window.currentFilterCat = 'ทั้งหมด';
         render();
         window.scrollTo({top: 0, behavior: 'smooth'});
     }
 
-    // --- ฟังก์ชันจัดการข้อมูล ---
     window.saveProjectForm = function() {
         const idx = parseInt(document.getElementById('editIdx').value);
         const name = document.getElementById('pName').value;
@@ -383,16 +387,19 @@ window.formatInput = function(el) {
 
     window.updateHandover = function(pi, hi, field, val) { projects[pi].handovers[hi][field] = field === 'totalP1' ? window.unformat(val) : val; save(); }
 
-    window.deleteProject = function(pi) { if(confirm("ยืนยันการลบโครงการนี้?")) { projects.splice(pi, 1); window.backToDashboard(); } }
+    window.deleteProject = function(pi) { 
+        if(confirm("ยืนยันการลบโครงการนี้?")) { 
+            projects.splice(pi, 1); 
+            activeProjectIndex = -1; 
+            save(); 
+        } 
+    }
     window.deleteRoute = function(pi, ri) { if(confirm("ยืนยันการลบเส้นทางซอยนี้?")) { projects[pi].routes.splice(ri, 1); window.backToProject(); } }
     window.deleteExp = function(pi, ri, ei) { if(confirm("ยืนยันการลบรายการจ่ายนี้?")) { projects[pi].routes[ri].expenses.splice(ei, 1); save(); } }
     window.deleteHandover = function(pi, hi) { if(confirm("ยืนยันการลบข้อมูลส่งมอบงาน?")) { projects[pi].handovers.splice(hi, 1); save(); } }
 
-    // --- ส่วนการแสดงผล (Render HTML) แยกเป็น 3 ระดับ ---
-    
     function render() {
         const container = document.getElementById('appContainer');
-        
         if (activeProjectIndex === -1) {
             container.innerHTML = renderLevel1_Dashboard();
         } else if (activeRouteIndex === -1) {
@@ -424,19 +431,13 @@ window.formatInput = function(el) {
                     <div style="align-self: end;"><button class="btn-blue" id="submitBtn" onclick="window.saveProjectForm()">สร้างโครงการ</button></div>
                 </div>
             </div>
-            
             <div class="dashboard-grid">
         `;
-
-        if(projects.length === 0) {
-            html += `<div style="grid-column: 1 / -1; text-align:center; padding: 40px; color:#999; font-size:18px;">ยังไม่มีข้อมูลโครงการ กรุณาสร้างโครงการใหม่ด้านบนค่ะ 👆</div>`;
-        }
-
+        if(projects.length === 0) { html += `<div style="grid-column: 1 / -1; text-align:center; padding: 40px; color:#999; font-size:18px;">ยังไม่มีข้อมูลโครงการ กรุณาสร้างโครงการใหม่ด้านบนค่ะ 👆</div>`; }
         projects.forEach((p, pi) => {
             let totalSpent = 0;
             p.routes.forEach(r => r.expenses.forEach(e => totalSpent += e.amt));
             let balance = p.targetCost - totalSpent;
-
             html += `
                 <div class="folder-card ${p.type === 'openend' ? 'folder-openend' : ''}" onclick="window.openProject(${pi})">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -447,7 +448,6 @@ window.formatInput = function(el) {
                         </div>
                     </div>
                     <div style="color:var(--permit); font-size:15px; margin-bottom:15px; font-weight:bold;">สาขา: ${p.branch || '-'} | กองงาน: ${p.dept || '-'}</div>
-                    
                     <div style="background:#f9f9f9; padding:15px; border-radius:8px; font-size:15px; border:1px solid #eee;">
                         <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
                             <span>งบเป้าหมาย:</span><span style="font-weight:bold; color:var(--dark);">${window.nf(p.targetCost)}</span>
@@ -472,13 +472,11 @@ window.formatInput = function(el) {
     function renderLevel2_Project(pi) {
         const p = projects[pi];
         if(!p) return '';
-        
         let totalSpent = 0;
         p.routes.forEach(r => r.expenses.forEach(e => totalSpent += e.amt));
 
         let html = `
             <button class="btn-back" onclick="window.backToDashboard()">⬅️ กลับแฟ้มรวมโครงการ</button>
-            
             <div class="card" style="border-top: 5px solid ${p.type==='openend'?'var(--permit)':'var(--primary)'};">
                 <div style="display:flex; gap:15px; align-items:center; margin-bottom:20px; width:100%;">
                     <input class="inline-input" style="font-size:26px; text-align:left; flex:2; padding:10px;" value="${p.name}" onchange="window.updateProjectDetail(${pi}, 'name', this.value)" placeholder="ชื่อโครงการ (คลิกเพื่อแก้)">
@@ -487,7 +485,6 @@ window.formatInput = function(el) {
                     </select>
                     <input class="inline-input" style="color:var(--permit); font-size:18px; text-align:left; flex:1;" value="${p.dept}" onchange="window.updateProjectDetail(${pi}, 'dept', this.value)" placeholder="กองงาน (คลิกเพื่อแก้)">
                 </div>
-
                 <div class="summary-grid">
                     <div class="summary-item"><span class="label">รวมระยะทาง (เมตร)</span><input class="inline-input" style="font-size:18px; color:var(--dark);" value="${p.totalDist}" onchange="window.updateProjectDetail(${pi}, 'totalDist', this.value)"></div>
                     <div class="summary-item"><span class="label">สัญญา (VAT)</span><input class="inline-input" style="font-size:16px; color:var(--dark);" value="${window.nf(p.contractVat)}" oninput="window.formatInput(this)" onchange="window.updateProjectDetail(${pi}, 'contractVat', this.value)"></div>
@@ -498,7 +495,6 @@ window.formatInput = function(el) {
                 </div>
                 
                 <hr style="border:0; border-top:1px solid #eee; margin:25px 0;">
-                
                 <h3 style="margin-top:0; font-size:20px;">🛣️ แฟ้มเส้นทาง / ซอยย่อย</h3>
                 
                 <div style="background:#f0f7ff; padding:20px; border-radius:10px; margin-bottom:20px; display:grid; grid-template-columns: 2fr 1fr auto; gap:15px; align-items:end;">
@@ -509,17 +505,12 @@ window.formatInput = function(el) {
 
                 <div class="dashboard-grid" style="margin-top:0;">
         `;
-
-        if(p.routes.length === 0) {
-            html += `<div style="grid-column: 1 / -1; text-align:center; padding: 20px; color:#999; font-style:italic;">ยังไม่มีเส้นทางซอยในโครงการนี้ กรุณาเพิ่มที่กล่องสีฟ้าด้านบนค่ะ</div>`;
-        }
-
+        if(p.routes.length === 0) { html += `<div style="grid-column: 1 / -1; text-align:center; padding: 20px; color:#999; font-style:italic;">ยังไม่มีเส้นทางซอยในโครงการนี้ กรุณาเพิ่มที่กล่องสีฟ้าด้านบนค่ะ</div>`; }
         p.routes.forEach((r, ri) => {
             let curP1 = r.p1EngVat > 0 ? r.p1EngVat : (r.p1SupVat > 0 ? r.p1SupVat : (r.p1SelfVat > 0 ? r.p1SelfVat : 0));
             let routeBudget = curP1 > 0 ? (curP1 / 1.07) * (p.costPercent / 100) : r.initialBudget;
             let rSpent = r.expenses.reduce((s, e) => s + e.amt, 0);
             let rBal = routeBudget - rSpent;
-            
             html += `
                 <div class="folder-card route-folder" onclick="window.openRoute(${ri})">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -529,7 +520,6 @@ window.formatInput = function(el) {
                     <div style="color:#555; font-size:15px; margin-bottom:10px; font-weight:bold;">
                         ระยะทาง: ${r.dist} ม. | สถานะ: <span style="color:var(--permit)">${r.status}</span>
                     </div>
-                    
                     <div style="background:#f9f9f9; padding:12px; border-radius:8px; font-size:14px; border:1px solid #eee;">
                         <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
                             <span>งบซอยนี้:</span><span style="font-weight:bold;">${window.nf(routeBudget)}</span>
@@ -547,9 +537,9 @@ window.formatInput = function(el) {
                 </div>
             `;
         });
-
         html += `
-                </div> <div class="card" style="margin-top: 40px; background: #fdfefe; border: 1px solid #e0e6ed;">
+                </div>
+                <div class="card" style="margin-top: 40px; background: #fdfefe; border: 1px solid #e0e6ed;">
                     <h3 style="font-size:20px;">🚚 บันทึกส่งมอบงาน (รวมทั้งโครงการ)</h3>
                     <div style="display:flex; gap:15px; align-items:end; margin-bottom:15px;">
                         <div style="flex:1;"><span class="label">งวดที่ส่งมอบ</span><input type="text" id="hoCount-${pi}" placeholder="เช่น งวดที่ 1" onkeyup="if(event.key==='Enter') window.addHandover(${pi})" style="font-size:16px;"></div>
@@ -562,7 +552,7 @@ window.formatInput = function(el) {
                         </div>
                     </div>
                     <table class="exp-table">
-                        <thead><tr><th style="width:12%">วันที่</th><th style="width:12%">งวดที่</th><th style="width:55%">เส้นทางที่ส่งมอบ (ปัดบรรทัดอัตโนมัติ)</th><th style="width:16%">P1 รวม</th><th style="width:5%">ลบ</th></tr></thead>
+                        <thead><tr><th style="width:12%">วันที่</th><th style="width:12%">งวดที่</th><th style="width:55%">เส้นทางที่ส่งมอบ</th><th style="width:16%">P1 รวม</th><th style="width:5%">ลบ</th></tr></thead>
                         <tbody>
                             ${(p.handovers || []).map((h, hi) => `
                                 <tr>
@@ -594,7 +584,6 @@ window.formatInput = function(el) {
         let p1Self = r.p1SelfVat || 0;
         let p1Sup = r.p1SupVat || 0;
         let p1Eng = r.p1EngVat || 0;
-
         let curP1 = p1Eng > 0 ? p1Eng : (p1Sup > 0 ? p1Sup : (p1Self > 0 ? p1Self : 0));
         let routeBudget = curP1 > 0 ? (curP1 / 1.07) * (p.costPercent / 100) : r.initialBudget;
         const spent = r.expenses.reduce((s, e) => s + e.amt, 0);
@@ -602,8 +591,15 @@ window.formatInput = function(el) {
         let catTotals = {};
         categories.forEach(c => catTotals[c] = 0);
         r.expenses.forEach(e => { if(catTotals[e.cat] !== undefined) catTotals[e.cat] += e.amt; });
-        let summaryHtml = categories.filter(c => catTotals[c] > 0).map(c => `<span class="cat-badge">${c}: ${window.nf(catTotals[c])}</span>`).join('');
-        if(!summaryHtml) summaryHtml = `<span style="color:#999; font-size:14px; font-weight:normal;">ยังไม่มีข้อมูลค่าใช้จ่ายหมวดต่างๆ</span>`;
+        
+        // สร้างปุ่มฟิลเตอร์หมวดหมู่
+        let summaryHtml = `<span class="cat-badge ${window.currentFilterCat === 'ทั้งหมด' ? 'active-filter' : ''}" onclick="window.setExpenseFilter('ทั้งหมด')">🔍 ดูทั้งหมด</span>`;
+        categories.forEach(c => {
+            if(catTotals[c] > 0) {
+                let isActive = window.currentFilterCat === c ? 'active-filter' : '';
+                summaryHtml += `<span class="cat-badge ${isActive}" onclick="window.setExpenseFilter('${c}')">${c}: ${window.nf(catTotals[c])}</span>`;
+            }
+        });
 
         let p1Dict = { 'p1Dist': p1Dist, 'p1Self': p1Self, 'p1Sup': p1Sup, 'p1Eng': p1Eng };
         let valA = p1Dict[r.compareA || 'p1Dist'];
@@ -614,9 +610,7 @@ window.formatInput = function(el) {
 
         let html = `
             <button class="btn-back" onclick="window.backToProject()">⬅️ กลับหน้าแฟ้มซอยย่อย (โครงการ: ${p.name})</button>
-            
             <div class="card" style="border-top: 5px solid var(--secondary);">
-                
                 <div style="display:flex; gap:15px; align-items:center; margin-bottom:20px;">
                     <span style="font-size:24px;">📍</span>
                     <input class="inline-input" style="font-size:24px; text-align:left; flex:2; padding:8px;" value="${r.name}" onchange="window.updateRouteInfo(${pi}, ${ri}, 'name', this.value)" placeholder="ชื่อเส้นทางซอย">
@@ -642,7 +636,6 @@ window.formatInput = function(el) {
                                 <option value="target" ${(p.p1Base||'vat')==='target'?'selected':''}>ยึดจากงบเป้าหมาย</option>
                             </select>
                         </span>
-                        <span style="color:#666; font-size:14px;">(ตัวเลือกนี้จะส่งผลต่อ P1 ช่องแรกค่ะ)</span>
                     </div>
                     <div class="p1-grid">
                         <div style="background:#f4f7f6; padding:10px; border-radius:6px; border:1px solid #e0e6ed;"><span class="label">1. P1 ประเมิน (ตามเมตร)</span><span class="val" style="padding:4px 0;">${window.nf(p1Dist)}</span></div>
@@ -681,7 +674,7 @@ window.formatInput = function(el) {
                 <h3 style="margin-top:30px; font-size:20px;">💸 รายการค่าใช้จ่ายซอยนี้</h3>
                 
                 <div style="background:#e8f4f8; padding:15px; border-radius:8px; margin-bottom:15px; display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
-                    <span style="font-weight:bold; color:var(--dark); font-size:15px; margin-right:5px;">📊 สรุปจ่ายแยกหมวดหมู่:</span>
+                    <span style="font-weight:bold; color:var(--dark); font-size:15px; margin-right:5px;">คลิกเพื่อกรองข้อมูล:</span>
                     ${summaryHtml}
                 </div>
 
@@ -697,9 +690,13 @@ window.formatInput = function(el) {
 
                 <table class="exp-table">
                     <thead style="background:#f4f7f6;">
-                        <tr><th style="width:10%">วันที่</th><th style="width:14%">หมวด</th><th style="width:20%">ผู้รับเงิน</th><th style="width:14%">จำนวนเงิน</th><th style="width:14%">สถานะ</th><th style="width:23%">หมายเหตุ (ขยายเต็มกล่อง)</th><th style="width:5%; text-align:center;">ลบ</th></tr>
+                        <tr><th style="width:10%">วันที่</th><th style="width:14%">หมวด</th><th style="width:20%">ผู้รับเงิน</th><th style="width:14%">จำนวนเงิน</th><th style="width:14%">สถานะ</th><th style="width:23%">หมายเหตุ</th><th style="width:5%; text-align:center;">ลบ</th></tr>
                     </thead>
-                    <tbody>${r.expenses.map((e, ei) => `
+                    <tbody>${r.expenses.map((e, ei) => {
+                        // เช็คฟิลเตอร์ ถ้าไม่ใช่ 'ทั้งหมด' และหมวดหมู่ไม่ตรงกับที่กดเลือก ให้ซ่อนบรรทัดนี้ไปเลยค่ะ
+                        if (window.currentFilterCat !== 'ทั้งหมด' && e.cat !== window.currentFilterCat) return '';
+                        
+                        return `
                         <tr>
                             <td><input type="date" class="table-input" value="${e.date}" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'date', this.value)"></td>
                             <td><select class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'cat', this.value)">${categories.map(c => `<option value="${c}" ${e.cat===c?'selected':''}>${c}</option>`).join('')}</select></td>
@@ -708,7 +705,8 @@ window.formatInput = function(el) {
                             <td><select class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'status', this.value)">${statuses.map(s => `<option value="${s}" ${e.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
                             <td><textarea class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'remark', this.value)" placeholder="เพิ่มหมายเหตุ..." style="resize:vertical; min-height:42px; line-height:1.4;">${e.remark || ''}</textarea></td>
                             <td style="text-align:center; vertical-align:middle;"><button onclick="window.deleteExp(${pi}, ${ri}, ${ei})" style="color:red; border:none; background:none; cursor:pointer; font-size:16px; font-weight:bold;">X</button></td>
-                        </tr>`).join('')}
+                        </tr>`;
+                    }).join('')}
                     </tbody>
                 </table>
             </div>
