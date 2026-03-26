@@ -594,32 +594,58 @@
         });
         html += `
                 </div>
-                <div class="card" style="margin-top: 40px; background: #fdfefe; border: 1px solid #e0e6ed;">
-                    <h3 style="font-size:20px;">🚚 บันทึกส่งมอบงาน (รวมทั้งโครงการ)</h3>
+            <div class="card" style="margin-top: 40px; background: #fdfefe; border: 1px solid #e0e6ed;">
+                    <h3 style="font-size:20px; color:#2c3e50; display:flex; align-items:center; gap:8px;">🚚 บันทึกส่งมอบงาน & ออกใบแจ้งหนี้รวม <span style="font-size:14px; color:#888; font-weight:normal;">(เลือกรวมหลายซอยได้)</span></h3>
                     <div style="display:flex; gap:15px; align-items:end; margin-bottom:15px;">
                         <div style="flex:1;"><span class="label">งวดที่ส่งมอบ</span><input type="text" id="hoCount-${pi}" placeholder="เช่น งวดที่ 1" onkeyup="if(event.key==='Enter') window.addHandover(${pi})" style="font-size:16px;"></div>
                         <button class="btn-green" style="padding:12px 20px; font-size:16px;" onclick="window.addHandover(${pi})">💾 บันทึกส่งงาน</button>
                     </div>
                     <div style="font-size:15px; padding:15px; background:#f9f9f9; border-radius:8px; margin-bottom:15px; border:1px solid #eee;">
-                        <span class="label" style="margin-bottom:10px; font-size:15px;">☑️ ติ๊กเลือกเส้นทางที่ต้องการส่งมอบในงวดนี้:</span>
+                        <span class="label" style="margin-bottom:10px; font-size:15px; color:var(--dark);">☑️ ติ๊กเลือกเส้นทางที่ต้องการส่งมอบ (ระบบจะดึงยอด P1 มาบวกรวมและคำนวณภาษีให้อัตโนมัติ):</span>
                         <div style="display:flex; flex-wrap:wrap; gap:12px;">
                             ${p.routes.length > 0 ? p.routes.map((r, ri) => `<label style="background:#fff; padding:8px 12px; border-radius:6px; border:1px solid #ccc; cursor:pointer; font-weight:bold;"><input type="checkbox" class="hoCheck-${pi}" value="${ri}" style="width:auto;"> ${r.name}</label>`).join('') : '<span style="color:#999;">ยังไม่มีเส้นทางให้เลือก</span>'}
                         </div>
                     </div>
-                    <table class="exp-table">
-                        <thead><tr><th style="width:12%">วันที่</th><th style="width:12%">งวดที่</th><th style="width:55%">เส้นทางที่ส่งมอบ</th><th style="width:16%">P1 รวม</th><th style="width:5%">ลบ</th></tr></thead>
-                        <tbody>
-                            ${(p.handovers || []).map((h, hi) => `
+                    <div style="overflow-x:auto;">
+                        <table class="exp-table" style="min-width: 900px;">
+                            <thead style="background:#eef2f7;">
                                 <tr>
-                                    <td style="vertical-align:top;"><input type="date" class="table-input" value="${h.date}" onchange="window.updateHandover(${pi}, ${hi}, 'date', this.value)"></td>
-                                    <td style="vertical-align:top;"><input type="text" class="table-input" value="${h.count}" onchange="window.updateHandover(${pi}, ${hi}, 'count', this.value)"></td>
-                                    <td style="vertical-align:top;"><textarea class="table-input" onchange="window.updateHandover(${pi}, ${hi}, 'routes', this.value)" style="width:100%; box-sizing:border-box; resize:vertical; min-height:50px; font-family:'Sarabun'; font-size:15px; line-height:1.4;">${h.routes}</textarea></td>
-                                    <td style="vertical-align:top;"><input type="text" class="table-input" value="${window.nf(h.totalP1)}" oninput="window.formatInput(this)" onchange="window.updateHandover(${pi}, ${hi}, 'totalP1', this.value)" style="font-weight:bold; color:var(--primary); font-size:15px;"></td>
-                                    <td style="vertical-align:top;"><button onclick="window.deleteHandover(${pi}, ${hi})" style="color:red; border:none; background:none; cursor:pointer; font-size:16px; font-weight:bold;">X</button></td>
+                                    <th style="width:12%">วันที่</th>
+                                    <th style="width:10%">งวดที่</th>
+                                    <th style="width:30%">เส้นทางที่ส่งมอบ</th>
+                                    <th style="width:18%; text-align:center;">P1 รวม (ปรับแก้ได้)</th>
+                                    <th style="width:12%; text-align:center; color:var(--danger);">หักประกัน (10%)</th>
+                                    <th style="width:13%; text-align:center; color:var(--secondary);">รับสุทธิ (Net)</th>
+                                    <th style="width:5%; text-align:center;">ลบ</th>
                                 </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                ${(p.handovers || []).map((h, hi) => {
+                                    // โลจิกคำนวณใบแจ้งหนี้
+                                    let totalVat = h.totalP1 || 0;
+                                    let totalNoVat = totalVat / 1.07;
+                                    let retention = totalVat * 0.10;
+                                    let vatAmt = totalVat - totalNoVat;
+                                    let net = totalVat - retention;
+                                    
+                                    return `
+                                    <tr>
+                                        <td style="vertical-align:top;"><input type="date" class="table-input" value="${h.date}" onchange="window.updateHandover(${pi}, ${hi}, 'date', this.value)"></td>
+                                        <td style="vertical-align:top;"><input type="text" class="table-input" value="${h.count}" onchange="window.updateHandover(${pi}, ${hi}, 'count', this.value)"></td>
+                                        <td style="vertical-align:top;"><textarea class="table-input" onchange="window.updateHandover(${pi}, ${hi}, 'routes', this.value)" style="width:100%; box-sizing:border-box; resize:vertical; min-height:60px; font-family:'Sarabun'; font-size:14px; line-height:1.4;">${h.routes}</textarea></td>
+                                        <td style="vertical-align:top;">
+                                            <input type="text" class="table-input" value="${window.nf(totalVat)}" oninput="window.formatInput(this)" onchange="window.updateHandover(${pi}, ${hi}, 'totalP1', this.value)" style="font-weight:bold; color:var(--primary); font-size:16px; text-align:center; margin-bottom:5px;">
+                                            <div style="font-size:12px; color:#666; text-align:center;">ไม่รวมภาษี: ${window.nf(totalNoVat)}</div>
+                                            <div style="font-size:12px; color:#d35400; text-align:center;">VAT (7%): ${window.nf(vatAmt)}</div>
+                                        </td>
+                                        <td style="vertical-align:top; font-weight:bold; color:var(--danger); text-align:center; padding-top:15px; font-size:15px;">- ${window.nf(retention)}</td>
+                                        <td style="vertical-align:top; font-weight:bold; color:var(--secondary); text-align:center; padding-top:15px; font-size:16px;">${window.nf(net)}</td>
+                                        <td style="vertical-align:top; text-align:center; padding-top:15px;"><button onclick="window.deleteHandover(${pi}, ${hi})" style="color:red; border:none; background:none; cursor:pointer; font-size:16px; font-weight:bold;">X</button></td>
+                                    </tr>
+                                `}).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         `;
