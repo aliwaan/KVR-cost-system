@@ -210,9 +210,23 @@
         if(btnRedo) btnRedo.disabled = (historyIndex >= historyStack.length - 1);
     }
 
-    window.formatInput = function(el) {
-        let val = el.value.replace(/,/g, '');
-        if(!isNaN(val) && val !== "") el.value = Number(val).toLocaleString('en-US');
+window.formatInput = function(el) {
+        // 1. กรองเอาเฉพาะตัวเลขและจุดทศนิยม (ห้ามพิมพ์ตัวอักษร)
+        let val = el.value.replace(/[^0-9.]/g, ''); 
+        
+        // 2. แยกส่วนจำนวนเต็มและทศนิยม
+        let parts = val.split('.');
+        
+        // 3. ใส่ลูกน้ำ (,) ให้ส่วนจำนวนเต็มอัตโนมัติ
+        let intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        
+        // 4. ประกอบร่างกลับคืนมา
+        if (parts.length > 1) {
+            // ถ้ามีทศนิยม จะล็อกให้พิมพ์ได้สูงสุด 2 ตำแหน่งค่ะ
+            el.value = intPart + '.' + parts[1].substring(0, 2);
+        } else {
+            el.value = intPart;
+        }
     }
     window.unformat = function(str) { return parseFloat(str.toString().replace(/,/g, '')) || 0; }
     window.nf = function(num) { return Number(num).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
