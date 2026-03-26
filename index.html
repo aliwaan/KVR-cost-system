@@ -75,6 +75,10 @@
         .alert-box { background: #fdf2f2; border-left: 5px solid var(--danger); padding: 15px; margin-bottom: 20px; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         .link-text { color: var(--primary); text-decoration: underline; cursor: pointer; font-weight: bold; }
         .link-text:hover { color: var(--dark); }
+        
+        /* สไตล์สำหรับกล่องบันทึกโยกงบ */
+        .budget-remark-box { background:#fff8e1; padding:12px 15px; border-radius:6px; margin-top:10px; border:1px dashed #f39c12; display:flex; align-items:center; gap:10px; transition: 0.2s; }
+        .budget-remark-box:focus-within { background:#fff3cd; border-style:solid; }
     </style>
 </head>
 <body>
@@ -269,7 +273,6 @@
         window.scrollTo({top: 0, behavior: 'smooth'});
     }
 
-    // ฟังก์ชันเปิด-ปิด หน้าต่างตั้งค่ารายชื่อเนียนๆ
     window.openPayerModal = function() {
         document.getElementById('payerInputText').value = window.payerOptions.join(', ');
         document.getElementById('payerModalOverlay').style.display = 'flex';
@@ -329,7 +332,8 @@
         const name = document.getElementById(`newRName-${pi}`).value; const dist = document.getElementById(`newRDist-${pi}`).value;
         if(!name) return;
         let budget = (projects[pi].totalDist > 0) ? (parseFloat(dist) / projects[pi].totalDist) * projects[pi].targetCost : 0;
-        projects[pi].routes.push({ name, dist: parseFloat(dist), initialBudget: budget, p1SelfVat: 0, p1SupVat: 0, p1EngVat: 0, compareA: 'p1Dist', compareB: 'p1Eng', status: routeStatuses[0], expenses: [] });
+        // เพิ่มฟิลด์ budgetRemark เปล่าๆ เข้าไปตอนสร้างซอยใหม่
+        projects[pi].routes.push({ name, dist: parseFloat(dist), initialBudget: budget, p1SelfVat: 0, p1SupVat: 0, p1EngVat: 0, compareA: 'p1Dist', compareB: 'p1Eng', status: routeStatuses[0], expenses: [], budgetRemark: '' });
         save();
     }
 
@@ -709,6 +713,11 @@
                         <div class="summary-item" style="background:#fff; border-color:#ddd;"><span class="label" style="font-size:14px;">งบประมาณซอย (จาก P1 ล่าสุด)</span><span class="val" style="font-size:18px;">${window.nf(routeBudget)}</span></div>
                         <div class="summary-item" style="background:#fdf2f2; border-color:#fadbd8;"><span class="label" style="font-size:14px;">จ่ายจริงสะสมซอยนี้</span><span class="val" style="font-size:18px; color:var(--danger)">${window.nf(spent)}</span></div>
                         <div class="summary-item" style="background:#f2fdf6; border-color:#d4efdf;"><span class="label" style="font-size:14px;">เหลือจ่ายได้ (ซอยนี้)</span><span class="val" style="font-size:18px; color:${(routeBudget-spent)<0?'red':'green'}">${window.nf(routeBudget-spent)}</span></div>
+                    </div>
+
+                    <div class="budget-remark-box">
+                        <span style="font-weight:bold; color:#d35400; white-space:nowrap; font-size:15px;">📝 บันทึกจัดการงบ (ทดแทน/ยกยอด):</span>
+                        <input type="text" style="border:none; border-bottom:1px solid #f39c12; background:transparent; font-family:'Sarabun'; font-size:15px; flex:1; color:var(--dark); outline:none;" value="${r.budgetRemark || ''}" onchange="window.updateRouteInfo(${pi}, ${ri}, 'budgetRemark', this.value)" placeholder="เช่น ขาดทุน 2,000 เบิกชดเชยจากซอย B หรือ กำไร 5,000 ยกไปโปะซอย A ...">
                     </div>
                 </div>
                 
