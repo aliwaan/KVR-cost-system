@@ -756,33 +756,39 @@
                             <th style="width:4%; text-align:center;">ลบ</th>
                         </tr>
                     </thead>
-                    <tbody>${r.expenses.map((e, ei) => {
-                        if (window.currentFilterCat !== 'ทั้งหมด' && e.cat !== window.currentFilterCat) return '';
-                        
-                        let dueDateHtml = `<span style="color:#ccc; display:block; text-align:center;">-</span>`;
-                        if (e.cat === 'ค่าคอนกรีต') {
-                            if (!e.dueDate && e.date) { let d = new Date(e.date); d.setDate(d.getDate() + 45); e.dueDate = d.toISOString().split('T')[0]; }
-                            dueDateHtml = `<input type="date" class="table-input" style="color:#d35400; font-weight:bold;" value="${e.dueDate || ''}" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'dueDate', this.value)">`;
-                        }
+             <tbody>${r.expenses
+                        .map((e, index) => ({ obj: e, originalIndex: index })) // แอบจดตำแหน่งเดิมไว้ก่อน
+                        .sort((a, b) => new Date(a.obj.date || 0) - new Date(b.obj.date || 0)) // เรียงลำดับวันที่
+                        .map((item) => {
+                            let e = item.obj;
+                            let ei = item.originalIndex; // ดึงตำแหน่งเดิมกลับมาใช้
 
-                        let currentFrom = e.from || window.payerOptions[0];
+                            if (window.currentFilterCat !== 'ทั้งหมด' && e.cat !== window.currentFilterCat) return '';
+                            
+                            let dueDateHtml = `<span style="color:#ccc; display:block; text-align:center;">-</span>`;
+                            if (e.cat === 'ค่าคอนกรีต') {
+                                if (!e.dueDate && e.date) { let d = new Date(e.date); d.setDate(d.getDate() + 45); e.dueDate = d.toISOString().split('T')[0]; }
+                                dueDateHtml = `<input type="date" class="table-input" style="color:#d35400; font-weight:bold;" value="${e.dueDate || ''}" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'dueDate', this.value)">`;
+                            }
 
-                        return `
-                        <tr>
-                            <td><input type="date" class="table-input" value="${e.date}" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'date', this.value)"></td>
-                            <td><select class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'cat', this.value)">${categories.map(c => `<option value="${c}" ${e.cat===c?'selected':''}>${c}</option>`).join('')}</select></td>
-                            <td><textarea class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'payee', this.value)" style="resize:vertical; min-height:42px; line-height:1.4;">${e.payee}</textarea></td>
-                            <td><select class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'from', this.value)">
-                                ${window.payerOptions.includes(currentFrom) ? '' : `<option value="${currentFrom}">${currentFrom}</option>`}
-                                ${window.payerOptions.map(opt => `<option value="${opt}" ${currentFrom===opt?'selected':''}>${opt}</option>`).join('')}
-                            </select></td>
-                            <td><input type="text" class="table-input" value="${window.nf(e.amt)}" oninput="window.formatInput(this)" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'amt', this.value)" style="font-weight:bold; color:var(--primary); font-size:15px;"></td>
-                            <td><select class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'status', this.value)">${statuses.map(s => `<option value="${s}" ${e.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
-                            <td>${dueDateHtml}</td>
-                            <td><textarea class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'remark', this.value)" placeholder="เพิ่มหมายเหตุ..." style="resize:vertical; min-height:42px; line-height:1.4;">${e.remark || ''}</textarea></td>
-                            <td style="text-align:center; vertical-align:middle;"><button onclick="window.deleteExp(${pi}, ${ri}, ${ei})" style="color:red; border:none; background:none; cursor:pointer; font-size:16px; font-weight:bold;">X</button></td>
-                        </tr>`;
-                    }).join('')}
+                            let currentFrom = e.from || window.payerOptions[0];
+
+                            return `
+                            <tr>
+                                <td><input type="date" class="table-input" value="${e.date}" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'date', this.value)"></td>
+                                <td><select class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'cat', this.value)">${categories.map(c => `<option value="${c}" ${e.cat===c?'selected':''}>${c}</option>`).join('')}</select></td>
+                                <td><textarea class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'payee', this.value)" style="resize:vertical; min-height:42px; line-height:1.4;">${e.payee}</textarea></td>
+                                <td><select class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'from', this.value)">
+                                    ${window.payerOptions.includes(currentFrom) ? '' : `<option value="${currentFrom}">${currentFrom}</option>`}
+                                    ${window.payerOptions.map(opt => `<option value="${opt}" ${currentFrom===opt?'selected':''}>${opt}</option>`).join('')}
+                                </select></td>
+                                <td><input type="text" class="table-input" value="${window.nf(e.amt)}" oninput="window.formatInput(this)" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'amt', this.value)" style="font-weight:bold; color:var(--primary); font-size:15px;"></td>
+                                <td><select class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'status', this.value)">${statuses.map(s => `<option value="${s}" ${e.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
+                                <td>${dueDateHtml}</td>
+                                <td><textarea class="table-input" onchange="window.updateExp(${pi}, ${ri}, ${ei}, 'remark', this.value)" placeholder="เพิ่มหมายเหตุ..." style="resize:vertical; min-height:42px; line-height:1.4;">${e.remark || ''}</textarea></td>
+                                <td style="text-align:center; vertical-align:middle;"><button onclick="window.deleteExp(${pi}, ${ri}, ${ei})" style="color:red; border:none; background:none; cursor:pointer; font-size:16px; font-weight:bold;">X</button></td>
+                            </tr>`;
+                        }).join('')}
                     </tbody>
                 </table>
             </div>
